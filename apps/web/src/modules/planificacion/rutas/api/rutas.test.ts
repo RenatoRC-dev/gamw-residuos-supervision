@@ -9,7 +9,7 @@ describe('transporte de rutas', () => {
     vi.stubGlobal('fetch', fetch);
     await apiRutas.crear({ codigo: 'SINTETICA', nombre: 'Prueba sintética', vigenteDesde: '2026-01-01T00:00:00Z', geometria });
     expect(fetch.mock.calls[0][0]).toBe('/api/rutas');
-    expect(fetch.mock.calls[0][1].headers['X-GAMW-Development']).toBe('rutas-poc');
+    expect(fetch.mock.calls[0][1].headers['X-GAMW-Development']).toBe('gamw-desarrollo');
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
       codigo: 'SINTETICA', nombre: 'Prueba sintética', vigenteDesde: '2026-01-01T00:00:00Z', geometria,
     });

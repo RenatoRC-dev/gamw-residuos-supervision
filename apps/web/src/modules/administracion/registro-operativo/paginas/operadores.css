@@ -1,0 +1,13 @@
+.operadores { max-width: 1100px; margin: auto; padding: 1rem; }
+.registro-operativo { border: 0; padding: 0; min-width: 0; }
+.operadores section { margin-block: 1.5rem; }
+.operadores form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; padding: 1rem; border: 1px solid #cbd5e1; }
+.operadores form h3, .operadores form p { flex-basis: 100%; margin: 0; }
+.operadores label { display: flex; flex-direction: column; gap: .25rem; }
+.operadores fieldset label:has(input[type=checkbox]) { flex-direction: row; align-items: center; }
+.operadores table { width: 100%; text-align: left; border-collapse: collapse; }
+.operadores th, .operadores td { padding: .5rem; border-bottom: 1px solid #cbd5e1; overflow-wrap: anywhere; }
+.operadores button { margin: .2rem; }
+.operadores li { margin-block: .5rem; }
+.operadores [role=alert] { color: #b91c1c; }
+@media (max-width: 600px) { .operadores table { font-size: .85rem; } .operadores td { padding: .2rem; } }

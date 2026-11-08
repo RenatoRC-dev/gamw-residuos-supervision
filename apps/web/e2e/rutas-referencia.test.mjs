@@ -10,7 +10,7 @@ test('CU-09: dibujar, persistir, recuperar y versionar una ruta sintética', { t
   const codigo = `SINTETICA-E2E-${randomUUID()}`;
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-  const headers = { 'X-GAMW-Development': 'rutas-poc' };
+  const headers = { 'X-GAMW-Development': 'gamw-desarrollo' };
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   try {

@@ -15,6 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ResiduosApplicationTests {
     @MockitoBean
     private RepositorioRuta rutas;
+    @MockitoBean
+    private bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.dominio.RepositorioRegistroOperativo registro;
     @Autowired
     private ApplicationContext context;
 

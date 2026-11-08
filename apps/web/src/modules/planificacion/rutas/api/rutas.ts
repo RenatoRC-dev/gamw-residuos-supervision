@@ -1,4 +1,4 @@
-import { apiConfig } from '../../../../shared/api/config';
+import { requestJson } from '../../../../shared/api/http';
 import { validarLineString, type GeometriaLineString } from '../modelo/geometria';
 
 export interface Ruta {
@@ -11,17 +11,8 @@ export interface RutaVersion {
 export interface EntradaVersion { geometria: GeometriaLineString; vigenteDesde: string; motivoCambio?: string }
 export interface EntradaRuta extends EntradaVersion { codigo: string; nombre: string }
 
-async function request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${apiConfig.baseUrl}/rutas${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: { 'X-GAMW-Development': 'rutas-poc', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
-    body: body === undefined ? undefined : JSON.stringify(body), signal,
-  });
-  if (!response.ok) {
-    const problem: { detail?: string } = await response.json().catch(() => ({}));
-    throw new Error(problem.detail || `No se pudo completar la solicitud (${response.status}).`);
-  }
-  return response.json() as Promise<T>;
+function request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  return requestJson<T>(`/rutas${path}`, body === undefined ? 'GET' : 'POST', body, signal);
 }
 
 function versionDesdeApi(version: RutaVersion): RutaVersion {

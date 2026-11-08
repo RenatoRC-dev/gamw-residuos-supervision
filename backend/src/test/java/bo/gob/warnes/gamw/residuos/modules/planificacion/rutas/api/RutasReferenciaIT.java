@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** CU-09 / RF-06 / CA-04..13. Real PostgreSQL/PostGIS, only owned synthetic fixtures are removed. */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("desarrollo-rutas")
+@ActiveProfiles("desarrollo-local")
 class RutasReferenciaIT {
     private static final String START = "2026-01-01T00:00:00Z";
     private static final String NEXT = "2026-01-02T00:00:00Z";
@@ -204,6 +204,6 @@ class RutasReferenciaIT {
                 "vigenteDesde", vigenteDesde, "motivoCambio", "Verificación sintética CU-09"));
     }
     private static MockHttpServletRequestBuilder local(MockHttpServletRequestBuilder request) {
-        return request.header("X-GAMW-Development", "rutas-poc");
+        return request.header("X-GAMW-Development", "gamw-desarrollo");
     }
 }

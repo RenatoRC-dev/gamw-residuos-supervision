@@ -19,6 +19,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class HealthEndpointTests {
     @MockitoBean
     private RepositorioRuta rutas;
+    @MockitoBean
+    private bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.dominio.RepositorioRegistroOperativo registro;
     @Autowired
     private MockMvc mvc;
 
@@ -37,8 +39,11 @@ class HealthEndpointTests {
 
     @Test
     void deniesBusinessEndpointsWithoutDevelopmentProfile() throws Exception {
-        mvc.perform(get("/api/rutas").header("X-GAMW-Development", "rutas-poc"))
-                .andExpect(status().isUnauthorized());
+        for (String ruta : new String[]{"/api/rutas", "/api/personas", "/api/empresas-operadoras",
+                "/api/empresas-operadoras/funciones-operativas"}) {
+            mvc.perform(get(ruta).header("X-GAMW-Development", "gamw-desarrollo"))
+                    .andExpect(status().isUnauthorized());
+        }
     }
 
     @Test
