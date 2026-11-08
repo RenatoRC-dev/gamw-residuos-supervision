@@ -186,3 +186,28 @@ A slice is done only when:
 ## Product mantra
 
 Build a municipal supervision and traceability product, not a generic CRUD dashboard.
+
+## Documentation hygiene
+
+Do not create documentation only to report execution activity.
+
+Unless explicitly requested, do NOT create:
+- phase reports;
+- audit reports;
+- evidence folders;
+- execution logs;
+- file inventories;
+- context hash files;
+- temporary Markdown reports;
+- generated summaries.
+
+Execution results, audits and verification details must be returned in the final chat response.
+
+Permanent documentation may only be created or modified when it represents stable project knowledge, such as:
+- product/context baseline;
+- architectural decisions;
+- testing strategy;
+- traceability;
+- permanent technical conventions.
+
+Git history, tests and the final agent report are sufficient evidence of routine implementation work.
