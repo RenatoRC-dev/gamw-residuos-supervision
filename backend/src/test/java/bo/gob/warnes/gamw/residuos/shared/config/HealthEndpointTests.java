@@ -1,10 +1,13 @@
 package bo.gob.warnes.gamw.residuos.shared.config;
 
+import bo.gob.warnes.gamw.residuos.modules.planning.routes.domain.RouteRepository;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("smoke")
 class HealthEndpointTests {
+    @MockitoBean
+    private RouteRepository routes;
     @Autowired
     private MockMvc mvc;
 
@@ -27,6 +32,12 @@ class HealthEndpointTests {
     @Test
     void deniesUnconfiguredPrivatePaths() throws Exception {
         mvc.perform(get("/api/private"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deniesBusinessEndpointsWithoutDevelopmentProfile() throws Exception {
+        mvc.perform(get("/api/routes").header("X-GAMW-Development", "route-poc"))
                 .andExpect(status().isUnauthorized());
     }
 

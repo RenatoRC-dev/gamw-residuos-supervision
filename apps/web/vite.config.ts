@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       host: '127.0.0.1',
+      port: 5173,
+      strictPort: true,
       proxy: {
         '/api': {
           target: env.BACKEND_PROXY_TARGET || 'http://127.0.0.1:8080',
@@ -15,6 +17,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     test: {
+      include: ['src/**/*.test.{ts,tsx}'],
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
       clearMocks: true,

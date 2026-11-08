@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { readTechnicalHealth } from '../shared/api/health';
 
 export function TechnicalHome() {
@@ -16,7 +17,7 @@ export function TechnicalHome() {
     <main>
       <p>Gobierno Autónomo Municipal de Warnes</p>
       <h1>GAMW · Base técnica</h1>
-      <p>PHASE 0 — ENGINEERING FOUNDATION</p>
+      <p><Link to="/rutas">Digitalizar ruta de referencia</Link></p>
       <p role="status">{status}</p>
       <p>Disponibilidad del proceso; no certifica la base de datos.</p>
     </main>
