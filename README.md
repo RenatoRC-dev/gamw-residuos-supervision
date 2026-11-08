@@ -1,115 +1,71 @@
 # GAMW — Plataforma de supervisión y trazabilidad
 
-Plataforma Web y Móvil para la Supervisión, Fiscalización y Trazabilidad del
-Servicio de Recolección de Residuos Urbanos mediante Georreferenciación y
-Monitoreo GPS para el Gobierno Autónomo Municipal de Warnes.
+Plataforma web y móvil para la supervisión, fiscalización y trazabilidad del
+servicio de recolección de residuos urbanos del Gobierno Autónomo Municipal de Warnes.
 
-**Current status: PHASE 0 — ENGINEERING FOUNDATION**
-
-GPS es evidencia, no prueba automática de recolección. El fiscalizador municipal
-determina el resultado. La información histórica debe sobrevivir a los cambios
-de operador. No hay sanciones automáticas.
+**GPS es evidencia, no prueba automática de recolección.**
+El fiscalizador municipal determina el resultado.
 
 ## Estructura
 
-- `backend/`: Java/Spring Boot, monolito modular; solo infraestructura técnica.
-- `apps/web/`: React/TypeScript, shell técnico y configuración HTTP centralizada.
-- `apps/mobile/`: Flutter, shell técnico Android/iOS sin plugins adicionales.
-- [docs/context](docs/context/00_README.md): Baseline 1.0; lectura obligatoria.
-- [docs/architecture](docs/architecture/adr/0001-engineering-baseline.md): ADR,
-  estrategia de pruebas y trazabilidad.
-- `docs/evidence/`: resultados verificables por fase/slice.
-- `scripts/`: verificaciones reproducibles.
+```text
+apps/
+├── web/
+└── mobile/
+backend/
+docs/
+└── context/
+.github/
+└── workflows/
+```
 
-## Requisitos
+## Tecnologías
 
-Java JDK 21 (`JAVA_HOME`), Node.js 22.18.0 y npm 10.9.3, Flutter stable 3.35.4
-con Dart 3.9.2 (SDK local utilizado), PostgreSQL accesible y credenciales de una
-base **dedicada al proyecto** para ejecutar el backend completo. Maven 3.9.16
-se descarga mediante Wrapper; no requiere instalación global. Primeras
-resoluciones de dependencias requieren Internet. PostGIS será requisito de
-Slice 1 y no se instala automáticamente.
+Java 21, Spring Boot 4.1.2, Maven Wrapper, PostgreSQL y Flyway;
+React 19.3, TypeScript, Vite 8, MapLibre GL JS, Terra Draw y npm;
+Flutter stable 3.35.4 y Dart 3.9.2.
+Node.js 22.18.0. Docker Compose únicamente para PostgreSQL/PostGIS de desarrollo.
 
-Android requiere su SDK y dispositivo/emulador; iOS requiere macOS y Xcode.
-No se verificó un binario móvil de plataforma en Phase 0.
+## Ejecución
 
-## Backend
-
-Desde `backend/`, exportar `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` en el entorno
-del proceso (ver [ejemplo sin credenciales](backend/.env.example)). Spring Boot
-**no carga `.env` automáticamente**. No guardar secretos en archivos versionados.
+Backend: desde `backend/`, crear `.env` a partir del [ejemplo](backend/.env.example)
+y establecer contraseñas locales distintas para el administrador y la aplicación. Compose y Spring Boot cargan ese archivo;
+las variables del proceso tienen prioridad. La BD usa `localhost:5433`.
 
 ```powershell
+docker compose -f compose.dev.yml up -d
 ./mvnw.cmd spring-boot:run
-./mvnw.cmd --batch-mode --no-transfer-progress test
-./mvnw.cmd --batch-mode --no-transfer-progress package
 ```
 
-En Linux/macOS usar `sh ./mvnw` en lugar de `./mvnw.cmd`.
-`GET /api/technical/health` es liveness del proceso, no readiness de la BD.
-Por defecto escucha solo en `127.0.0.1:8080`. La aplicación normal exige
-PostgreSQL y ejecuta Flyway al arrancar. Hibernate valida, no crea el esquema.
-Solo los tests `smoke` excluyen persistencia; no emplean H2.
+En Linux/macOS: `sh ./mvnw spring-boot:run`.
 
-La seguridad permite exclusivamente ese GET y deniega el resto. No hay login,
-usuarios generados ni matriz de permisos definitiva. CSRF permanece activo.
-El despliegue HTTPS y autenticación se diseñarán antes de exponer datos internos.
+Para la POC local de rutas, iniciar con `./mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=route-development"`.
+Ese perfil permite únicamente acceso loopback con cabecera explícita y origen web
+permitido; no sustituye la autenticación ni los permisos institucionales pendientes.
+Sin el perfil, las APIs de negocio permanecen bloqueadas.
 
-Para verificar Flyway contra una BD PostgreSQL dedicada ya configurada:
-
-```powershell
-./mvnw.cmd --batch-mode --no-transfer-progress -Ppostgres-integration verify
-```
-
-Este comando aplica migraciones: **no apuntarlo a una BD ajena al proyecto**.
-Alternativamente, en Windows con binarios PostgreSQL locales, el script
-[Test-Postgres.ps1](scripts/Test-Postgres.ps1) crea un cluster de prueba aislado
-en `.local/`, ejecuta la integración y lo detiene. No usa el servicio existente.
-
-## Web
-
-Desde `apps/web/`:
+Web: desde `apps/web/`, con la [configuración pública](apps/web/.env.example).
 
 ```powershell
 npm ci
-npm test
-npm run build
 npm run dev
 ```
 
-Abrir la URL que indique Vite (normalmente `http://127.0.0.1:5173`).
-La configuración pública usa `VITE_API_BASE_URL` (predeterminado `/api`). El
-proxy de desarrollo usa `BACKEND_PROXY_TARGET`; ambos se documentan en
-[apps/web/.env.example](apps/web/.env.example). Exportar variables o configurar
-el entorno local sin versionar secretos. `VITE_*` se incrusta en el cliente.
-Producción necesita servir el frontend y configurar su propio proxy `/api`.
-`vite preview` solo previsualiza el build y no es un servidor de producción.
+Abrir `http://127.0.0.1:5173/rutas` para dibujar, guardar y recuperar versiones.
+El mapa base es configurable mediante `VITE_MAP_STYLE_URL`. Las pruebas de navegador
+se ejecutan con `npm run test:e2e`, con backend POC y Vite activos y Chromium de
+Playwright instalado (`npx playwright install chromium`). No generan capturas ni informes.
 
-## Mobile
-
-Desde `apps/mobile/`, usando una operación Flutter a la vez:
+Mobile: desde `apps/mobile/`, con dispositivo/emulador configurado.
+iOS requiere macOS y Xcode.
 
 ```powershell
 flutter pub get
-flutter analyze
-flutter test
 flutter run
 ```
 
-`flutter run` necesita un dispositivo disponible. No cambiar de canal ni
-actualizar el SDK para ejecutar esta base. `pubspec.lock` se versiona.
+## Contexto
 
-## Pruebas y estado
+[Baseline 1.0 y reglas del proyecto](docs/context/00_README.md).
 
-[Estrategia](docs/architecture/testing-strategy.md) ·
-[Trazabilidad](docs/architecture/traceability.md) ·
-[Evidencia de Phase 0](docs/evidence/phase-0.md).
-
-Se incluyen comandos de verificación secuencial en `scripts/verify.ps1` y CI
-básica en `.github/workflows/verify.yml`; esta última se ejecutará si el proyecto
-se aloja en GitHub. No se ha creado remoto, commit ni publicación.
-
-No están implementados Slice 1, mapas, entidades de negocio, rutas operativas,
-jornadas, GPS, persistencia offline móvil, sincronización, fiscalización,
-reclamos ni reportes. Sin Docker, microservicios, IA, IoT u optimización avanzada.
-Las decisiones institucionales `PENDING` de la Baseline permanecen abiertas.
+**Current status: Slice 1 — digitization, persistence and historical versioning of reference routes.**
