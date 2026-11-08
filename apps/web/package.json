@@ -11,7 +11,7 @@
     "dev": "vite",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "node --test --test-concurrency=1 e2e/rutas-referencia.test.mjs e2e/registro-operativo.test.mjs e2e/vehiculos.test.mjs",
+    "test:e2e": "node --test --test-concurrency=1 e2e/rutas-referencia.test.mjs e2e/registro-operativo.test.mjs e2e/vehiculos.test.mjs e2e/jornadas.test.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },

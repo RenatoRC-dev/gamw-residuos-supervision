@@ -19,6 +19,7 @@ export function TechnicalHome() {
       <h1>GAMW · Base técnica</h1>
       <p><Link to="/rutas">Digitalizar ruta de referencia</Link></p>
       <p><Link to="/operadores">Gestionar empresas, periodos y personal</Link></p>
+      <p><Link to="/jornadas">Programar jornadas y asignar recursos</Link></p>
       <p role="status">{status}</p>
       <p>Disponibilidad del proceso; no certifica la base de datos.</p>
     </main>

@@ -72,6 +72,9 @@ public class RepositorioVehiculosPostgres implements RepositorioVehiculos {
     public List<VinculoVehiculoEmpresa> vinculos(UUID empresaId) {
         return jdbc.query("SELECT * FROM vinculo_vehiculo_empresa WHERE empresa_operadora_id=? ORDER BY fecha_inicio,id",this::leerVinculo,empresaId);
     }
+    public Optional<VinculoVehiculoEmpresa> vinculoPorId(UUID id) {
+        return jdbc.query("SELECT * FROM vinculo_vehiculo_empresa WHERE id=?",this::leerVinculo,id).stream().findFirst();
+    }
     private MarcaVehiculo leerMarca(ResultSet r,int i) throws SQLException {
         return new MarcaVehiculo(r.getObject("id",UUID.class),r.getString("nombre"),r.getBoolean("activo"));
     }

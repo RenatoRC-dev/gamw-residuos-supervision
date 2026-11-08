@@ -19,6 +19,8 @@ class ResiduosApplicationTests {
     private bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.dominio.RepositorioRegistroOperativo registro;
     @MockitoBean
     private bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.dominio.RepositorioVehiculos vehiculos;
+    @MockitoBean
+    private bo.gob.warnes.gamw.residuos.modules.planificacion.jornadas.dominio.RepositorioJornadas jornadas;
     @Autowired
     private ApplicationContext context;
 

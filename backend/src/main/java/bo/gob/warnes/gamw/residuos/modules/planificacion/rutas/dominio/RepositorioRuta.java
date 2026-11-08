@@ -14,6 +14,7 @@ public interface RepositorioRuta {
     List<RutaVersion> versiones(UUID rutaId);
     Optional<RutaVersion> ultima(UUID rutaId);
     Optional<RutaVersion> obtenerVersion(UUID rutaId, int numeroVersion);
+    Optional<RutaVersion> versionPorId(UUID id);
     void cerrarVersion(UUID versionId, Instant vigenteHasta);
     void actualizarFecha(UUID rutaId, Instant actualizadoEn);
 }

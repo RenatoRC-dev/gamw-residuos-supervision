@@ -18,9 +18,12 @@ public interface RepositorioRegistroOperativo {
     void actualizarPeriodo(PeriodoServicio periodo);
     Optional<PeriodoServicio> periodo(UUID empresaId, UUID id);
     List<PeriodoServicio> periodos(UUID empresaId);
+    Optional<PeriodoServicio> periodoPorId(UUID id);
+    List<PeriodoServicio> todosPeriodos();
     void insertarVinculo(VinculoPersonaEmpresa vinculo);
     void actualizarVinculo(VinculoPersonaEmpresa vinculo);
     Optional<VinculoPersonaEmpresa> vinculo(UUID empresaId, UUID id);
+    Optional<VinculoPersonaEmpresa> vinculoPorId(UUID id);
     List<VinculoPersonaEmpresa> personal(UUID empresaId);
     List<FuncionOperativa> funciones();
     List<FuncionOperativa> funcionesDelVinculo(UUID vinculoId);

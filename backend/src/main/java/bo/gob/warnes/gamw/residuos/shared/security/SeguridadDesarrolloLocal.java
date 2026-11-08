@@ -32,7 +32,8 @@ public class SeguridadDesarrolloLocal {
             throw new IllegalStateException("El origen web de desarrollo debe ser un origen local sin ruta.");
         }
         String[] endpoints = {"/api/rutas", "/api/rutas/**", "/api/personas", "/api/personas/**",
-                "/api/empresas-operadoras", "/api/empresas-operadoras/**", "/api/vehiculos", "/api/vehiculos/**"};
+                "/api/empresas-operadoras", "/api/empresas-operadoras/**", "/api/vehiculos", "/api/vehiculos/**",
+                "/api/jornadas", "/api/jornadas/**", "/api/periodos-servicio", "/api/periodos-servicio/**"};
         return http.securityMatcher(endpoints)
                 .authorizeHttpRequests(authorize -> authorize.anyRequest().access((authentication, context) -> {
                     var request = context.getRequest();

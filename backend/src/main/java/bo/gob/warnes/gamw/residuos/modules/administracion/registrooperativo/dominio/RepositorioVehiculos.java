@@ -21,5 +21,6 @@ public interface RepositorioVehiculos {
     void insertarVinculo(VinculoVehiculoEmpresa vinculo);
     void cerrarVinculo(VinculoVehiculoEmpresa vinculo);
     Optional<VinculoVehiculoEmpresa> vinculo(UUID empresaId, UUID id);
+    Optional<VinculoVehiculoEmpresa> vinculoPorId(UUID id);
     List<VinculoVehiculoEmpresa> vinculos(UUID empresaId);
 }

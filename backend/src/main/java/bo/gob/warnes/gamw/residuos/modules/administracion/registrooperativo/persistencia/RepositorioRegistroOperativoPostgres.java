@@ -53,6 +53,15 @@ public class RepositorioRegistroOperativoPostgres implements RepositorioRegistro
     public List<PeriodoServicio> periodos(UUID empresaId) {
         return jdbc.query("SELECT * FROM periodo_servicio WHERE empresa_operadora_id=? ORDER BY fecha_inicio,id",this::leerPeriodo,empresaId);
     }
+    public Optional<PeriodoServicio> periodoPorId(UUID id) {
+        return jdbc.query("SELECT * FROM periodo_servicio WHERE id=?",this::leerPeriodo,id).stream().findFirst();
+    }
+    public List<PeriodoServicio> todosPeriodos() {
+        return jdbc.query("SELECT * FROM periodo_servicio ORDER BY fecha_inicio,id",this::leerPeriodo);
+    }
+    public Optional<VinculoPersonaEmpresa> vinculoPorId(UUID id) {
+        return jdbc.query("SELECT * FROM vinculo_persona_empresa WHERE id=?",this::leerVinculo,id).stream().findFirst();
+    }
     public void insertarVinculo(VinculoPersonaEmpresa v) {
         jdbc.update("INSERT INTO vinculo_persona_empresa(id,persona_id,empresa_operadora_id,fecha_inicio,fecha_fin,activo,creado_en,actualizado_en) VALUES (?,?,?,?,?,?,?,?)",
                 v.id(),v.personaId(),v.empresaOperadoraId(),v.fechaInicio(),v.fechaFin(),v.activo(),Timestamp.from(v.creadoEn()),Timestamp.from(v.actualizadoEn()));

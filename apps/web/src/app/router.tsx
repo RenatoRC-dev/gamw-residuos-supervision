@@ -5,9 +5,12 @@ const PaginaRutasReferencia = lazy(() => import('../modules/planificacion/rutas/
   .then(module => ({ default: module.PaginaRutasReferencia })));
 const PaginaOperadores = lazy(() => import('../modules/administracion/registro-operativo/paginas/PaginaOperadores')
   .then(module => ({ default: module.PaginaOperadores })));
+const PaginaJornadas = lazy(() => import('../modules/planificacion/jornadas/paginas/PaginaJornadas')
+  .then(module => ({ default: module.PaginaJornadas })));
 
 export const appRoutes = [
   { path: '/', element: <TechnicalHome /> },
+  { path: '/jornadas', element: <Suspense fallback={<p role="status">Cargando planificación…</p>}><PaginaJornadas /></Suspense> },
   { path: '/operadores', element: <Suspense fallback={<p role="status">Cargando registro operativo…</p>}><PaginaOperadores /></Suspense> },
   { path: '/rutas', element: <Suspense fallback={<p role="status">Cargando editor de rutas…</p>}><PaginaRutasReferencia /></Suspense> },
   { path: '*', element: <main><h1>Página no encontrada</h1><a href="/">Inicio</a></main> },

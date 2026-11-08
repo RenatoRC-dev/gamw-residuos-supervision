@@ -64,6 +64,9 @@ public class RepositorioRutaPostgis implements RepositorioRuta {
         return jdbc.query(CONSULTA_VERSION + " WHERE ruta_id = ? ORDER BY numero_version DESC LIMIT 1", this::leerVersion, rutaId)
                 .stream().findFirst();
     }
+    public Optional<RutaVersion> versionPorId(UUID id) {
+        return jdbc.query(CONSULTA_VERSION + " WHERE id = ?",this::leerVersion,id).stream().findFirst();
+    }
 
     @Override
     public Optional<RutaVersion> obtenerVersion(UUID rutaId, int numeroVersion) {
