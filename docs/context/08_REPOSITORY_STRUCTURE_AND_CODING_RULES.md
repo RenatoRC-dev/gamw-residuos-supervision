@@ -13,16 +13,14 @@ Traceability target:
 ## 2. Recommended monorepo
 
 ```text
-gamw-platform/
+gamw-residuos-supervision/
 ├── apps/
 │   ├── web/
 │   └── mobile/
 ├── backend/
 ├── docs/
-│   ├── context/
-│   ├── architecture/
-│   └── evidence/
-└── scripts/
+│   └── context/
+└── .github/
 ```
 
 Exact build tooling may vary.
