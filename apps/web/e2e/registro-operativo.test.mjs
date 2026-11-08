@@ -66,20 +66,20 @@ test('Slice 2A: registro operativo e historia persona-empresa desde la web', { t
     assert.equal((await guardar('Activar periodo', `/empresas-operadoras/${empresa.id}/periodos/${periodo.id}/estado`, 'PATCH', 200)).activo, true);
 
     await page.getByLabel('Persona del vínculo').selectOption(persona.id);
-    await page.getByLabel('Inicio del vínculo').fill('2026-01-01');
+    await page.getByLabel('Inicio del vínculo', { exact: true }).fill('2026-01-01');
     await page.getByRole('checkbox', { name: 'Conductor', exact: true }).check();
     await page.getByRole('checkbox', { name: 'Supervisor de empresa', exact: true }).check();
     const vinculo = await guardar('Asociar persona', `/empresas-operadoras/${empresa.id}/personal`, 'POST', 201);
     assert.equal(vinculo.funcionesOperativas.length, 2);
     await page.getByRole('button', { name: 'Editar vínculo', exact: true }).click();
-    await page.getByLabel('Fin del vínculo').fill('2026-02-01');
+    await page.getByLabel('Fin del vínculo', { exact: true }).fill('2026-02-01');
     await page.getByRole('checkbox', { name: 'Vínculo activo', exact: true }).uncheck();
     const cerrado = await guardar('Guardar vínculo', `/empresas-operadoras/${empresa.id}/personal/${vinculo.id}`, 'PUT', 200);
     assert.equal(cerrado.fechaFin, '2026-02-01'); assert.equal(cerrado.activo, false);
     assert.deepEqual(cerrado.funcionesOperativas, vinculo.funcionesOperativas);
     assert.deepEqual(await leer(`/personas/${persona.id}`), identidad);
 
-    await page.getByLabel('Inicio del vínculo').fill('2026-03-01');
+    await page.getByLabel('Inicio del vínculo', { exact: true }).fill('2026-03-01');
     await page.getByRole('checkbox', { name: 'Conductor', exact: true }).check();
     const segundo = await guardar('Asociar persona', `/empresas-operadoras/${empresa.id}/personal`, 'POST', 201);
     assert.notEqual(segundo.id, vinculo.id);
@@ -92,7 +92,7 @@ test('Slice 2A: registro operativo e historia persona-empresa desde la web', { t
     const otra = await guardar('Crear empresa', '/empresas-operadoras', 'POST', 201);
     empresasPropias.push(otra.id);
     await page.getByLabel('Persona del vínculo').selectOption(persona.id);
-    await page.getByLabel('Inicio del vínculo').fill('2026-04-01');
+    await page.getByLabel('Inicio del vínculo', { exact: true }).fill('2026-04-01');
     await page.getByRole('checkbox', { name: 'Supervisor de empresa', exact: true }).check();
     const otro = await guardar('Asociar persona', `/empresas-operadoras/${otra.id}/personal`, 'POST', 201);
     assert.equal(otro.personaId, persona.id);

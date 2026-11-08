@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { apiRegistroOperativo as api, type PersonaNatural, type EmpresaOperadora, type PeriodoServicio,
   type VinculoPersonaEmpresa, type FuncionOperativa } from '../api/registroOperativo';
 import './operadores.css';
+import { SeccionVehiculos } from '../componentes/SeccionVehiculos';
 
 const opcional = (valor: FormDataEntryValue | null) => String(valor ?? '').trim() || null;
 const texto = (datos: FormData, clave: string) => String(datos.get(clave) ?? '');
@@ -197,7 +198,8 @@ export function PaginaOperadores() {
             {vinculoEditado && <button type="button" onClick={() => { setVinculoEditado(null); setClaveVinculo(c => c + 1); }}>Nuevo vínculo</button>}
           </form>
         </section>
-      </section> : <p>Seleccione o registre una empresa para gestionar sus periodos y personal.</p>}
+        <SeccionVehiculos key={empresaId} empresaId={empresaId} empresaNombre={empresaSeleccionada.razonSocial} />
+      </section> : <p>Seleccione o registre una empresa para gestionar sus periodos, personal y vehículos.</p>}
     </fieldset>
   </main>;
 }

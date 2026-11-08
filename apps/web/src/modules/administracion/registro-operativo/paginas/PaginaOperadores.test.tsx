@@ -4,6 +4,10 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { PaginaOperadores } from './PaginaOperadores';
 import { apiRegistroOperativo as api, type EmpresaOperadora, type PersonaNatural } from '../api/registroOperativo';
 
+vi.mock('../componentes/SeccionVehiculos', () => ({
+  SeccionVehiculos: () => <section aria-label="Sección vehicular">Registro vehicular</section>,
+}));
+
 const empresa: EmpresaOperadora = { id: 'empresa', nit: null, razonSocial: 'Empresa sintética', nombreComercial: null, activo: true, creadoEn: '', actualizadoEn: '' };
 const persona: PersonaNatural = { id: 'persona', ci: '00123456-1A', nombres: 'Persona sintética', apellidoPaterno: null, apellidoMaterno: null, telefono: null,
   activo: true, creadoEn: '', actualizadoEn: '' };
