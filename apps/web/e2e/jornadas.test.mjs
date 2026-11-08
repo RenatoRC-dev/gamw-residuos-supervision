@@ -13,11 +13,11 @@ test('Slice 3A: programar, reasignar y reprogramar preservando historia', { time
   const headers = { 'X-GAMW-Development': 'gamw-desarrollo' };
   const errores = [];
   page.on('pageerror', e => errores.push(e.message));
-  async function solicitud(ruta, datos) {
+  async function solicitud(ruta, datos, esperado = datos === undefined ? 200 : 201) {
     const respuesta = datos === undefined
       ? await page.request.get(`http://127.0.0.1:5173/api${ruta}`, { headers })
       : await page.request.post(`http://127.0.0.1:5173/api${ruta}`, { headers, data: datos });
-    assert.equal(respuesta.status(), datos === undefined ? 200 : 201, await respuesta.text());
+    assert.equal(respuesta.status(), esperado, await respuesta.text());
     return respuesta.json();
   }
   async function guardar(boton, ruta) {
@@ -76,11 +76,25 @@ test('Slice 3A: programar, reasignar y reprogramar preservando historia', { time
     await page.getByLabel('Vínculo de responsable', { exact: true }).selectOption(vinculosPersonas[0].id);
     const a1 = await guardar('Asignar recursos', `/jornadas/${id1}/asignaciones`);
     assert.equal(a1.motivoCambio, null);
+    const inicioLocal = { eventoClienteId: randomUUID(), asignacionJornadaId: a1.id, capturadoEn: new Date().toISOString() };
+    const inicioRegistrado = await solicitud(`/jornadas/${id1}/ejecucion/inicio`, inicioLocal);
+    assert.deepEqual(await solicitud(`/jornadas/${id1}/ejecucion/inicio`, inicioLocal, 200), inicioRegistrado);
     await page.getByRole('button', { name: 'Reasignar recursos', exact: true }).click();
     await page.getByLabel('Vínculo de vehículo', { exact: true }).selectOption(vinculosVehiculos[0].id);
     await page.getByLabel('Vínculo de responsable', { exact: true }).selectOption(vinculosPersonas[1].id);
     await page.getByLabel('Motivo de reasignación').fill('Cambio sintético de responsable');
     const a2 = await guardar('Confirmar reasignación', `/jornadas/${id1}/reasignaciones`);
+    const finLocal = { eventoClienteId: randomUUID(), asignacionJornadaId: a2.id, capturadoEn: new Date().toISOString() };
+    const finRegistrado = await solicitud(`/jornadas/${id1}/ejecucion/fin`, finLocal);
+    assert.deepEqual(await solicitud(`/jornadas/${id1}/ejecucion/fin`, finLocal, 200), finRegistrado);
+    const evidencia = await solicitud(`/jornadas/${id1}/ejecucion`);
+    assert.equal(evidencia.inicio.asignacionJornadaId, a1.id);
+    assert.equal(evidencia.fin.asignacionJornadaId, a2.id);
+    assert.equal(evidencia.inicio.capturadoEn, inicioRegistrado.capturadoEn);
+    await page.getByRole('button', { name: 'Actualizar evidencia', exact: true }).click();
+    await page.getByText('Fin registrado', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Iniciar jornada', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Finalizar jornada', exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Reasignar recursos', exact: true }).click();
     await page.getByLabel('Vínculo de vehículo', { exact: true }).selectOption(vinculosVehiculos[1].id);
     await page.getByLabel('Vínculo de responsable', { exact: true }).selectOption(vinculosPersonas[1].id);
@@ -108,6 +122,8 @@ test('Slice 3A: programar, reasignar y reprogramar preservando historia', { time
     assert.equal(anterior.jornada.vigente, false);
     for (const campo of ['periodoServicioId','rutaVersionId','inicioProgramado','finProgramado','creadoEn']) assert.equal(anterior.jornada[campo], original[campo]);
     assert.deepEqual(await solicitud(`/jornadas/${id1}/asignaciones`), historia);
+    assert.deepEqual(await solicitud(`/jornadas/${id1}/ejecucion`), evidencia);
+    assert.deepEqual(await solicitud(`/jornadas/${id1}/ejecucion/inicio`, inicioLocal, 200), inicioRegistrado);
     await page.getByRole('button', { name: 'Consultar antecedente', exact: true }).click();
     await page.getByText('Programación histórica sustituida', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Reprogramar jornada', exact: true }).count(), 0);
@@ -123,7 +139,7 @@ test('Slice 3A: programar, reasignar y reprogramar preservando historia', { time
     await browser.close();
     for (const id of [...periodos, ...empresas, ...personas, ...vehiculos, ...rutas]) assert.match(id, /^[0-9a-f-]{36}$/);
     const sql = [
-      ...periodos.flatMap(id => [`DELETE FROM asignacion_jornada WHERE jornada_id IN (SELECT id FROM jornada WHERE periodo_servicio_id='${id}');`, `DELETE FROM jornada WHERE periodo_servicio_id='${id}';`]),
+      ...periodos.flatMap(id => [`DELETE FROM evento_ejecucion_jornada WHERE jornada_id IN (SELECT id FROM jornada WHERE periodo_servicio_id='${id}');`, `DELETE FROM asignacion_jornada WHERE jornada_id IN (SELECT id FROM jornada WHERE periodo_servicio_id='${id}');`, `DELETE FROM jornada WHERE periodo_servicio_id='${id}';`]),
       ...empresas.flatMap(id => [
         `DELETE FROM vinculo_persona_funcion WHERE vinculo_persona_empresa_id IN (SELECT id FROM vinculo_persona_empresa WHERE empresa_operadora_id='${id}');`,
         `DELETE FROM vinculo_persona_empresa WHERE empresa_operadora_id='${id}';`,

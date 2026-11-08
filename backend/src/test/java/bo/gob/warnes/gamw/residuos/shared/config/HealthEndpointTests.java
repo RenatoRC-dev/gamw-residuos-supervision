@@ -25,6 +25,8 @@ class HealthEndpointTests {
     private bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.dominio.RepositorioVehiculos vehiculos;
     @MockitoBean
     private bo.gob.warnes.gamw.residuos.modules.planificacion.jornadas.dominio.RepositorioJornadas jornadas;
+    @MockitoBean
+    private bo.gob.warnes.gamw.residuos.modules.ejecucion.jornadas.dominio.RepositorioEventosEjecucion eventos;
     @Autowired
     private MockMvc mvc;
 
@@ -45,7 +47,7 @@ class HealthEndpointTests {
     void deniesBusinessEndpointsWithoutDevelopmentProfile() throws Exception {
         for (String ruta : new String[]{"/api/rutas", "/api/personas", "/api/empresas-operadoras",
                 "/api/empresas-operadoras/funciones-operativas", "/api/vehiculos", "/api/vehiculos/marcas", "/api/vehiculos/modelos", "/api/vehiculos/tipos",
-                "/api/jornadas", "/api/periodos-servicio"}) {
+                "/api/jornadas", "/api/periodos-servicio", "/api/jornadas/00000000-0000-4000-8000-000000000001/ejecucion"}) {
             mvc.perform(get(ruta).header("X-GAMW-Development", "gamw-desarrollo"))
                     .andExpect(status().isUnauthorized());
         }

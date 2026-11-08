@@ -12,6 +12,7 @@ public interface RepositorioJornadas {
     void sustituir(UUID jornadaId,Instant actualizadoEn);
     void insertarAsignacion(AsignacionJornada asignacion);
     Optional<AsignacionJornada> actual(UUID jornadaId);
+    Optional<AsignacionJornada> asignacionPorId(UUID id);
     List<AsignacionJornada> asignaciones(UUID jornadaId);
     void cerrarAsignacion(UUID asignacionId,Instant vigenteHasta);
 }

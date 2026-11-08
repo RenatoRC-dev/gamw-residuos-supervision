@@ -1,0 +1,60 @@
+enum TipoEventoEjecucion {
+  inicio('INICIO'),
+  fin('FIN');
+
+  const TipoEventoEjecucion(this.codigo);
+  final String codigo;
+}
+
+enum EstadoSincronizacion {
+  pendiente('PENDIENTE'),
+  sincronizado('SINCRONIZADO'),
+  conflicto('CONFLICTO');
+
+  const EstadoSincronizacion(this.codigo);
+  final String codigo;
+}
+
+class EventoEjecucionLocal {
+  EventoEjecucionLocal({
+    required this.eventoClienteId,
+    required this.jornadaId,
+    required this.asignacionJornadaId,
+    required this.tipoEvento,
+    required DateTime capturadoEn,
+    this.estadoSincronizacion = EstadoSincronizacion.pendiente,
+  }) : capturadoEn = capturadoEn.toUtc() {
+    final uuid = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    if (![
+      eventoClienteId,
+      jornadaId,
+      asignacionJornadaId,
+    ].every(uuid.hasMatch)) {
+      throw ArgumentError('Los identificadores deben ser UUID válidos.');
+    }
+  }
+
+  final String eventoClienteId;
+  final String jornadaId;
+  final String asignacionJornadaId;
+  final TipoEventoEjecucion tipoEvento;
+  final DateTime capturadoEn;
+  final EstadoSincronizacion estadoSincronizacion;
+
+  Map<String, Object?> get cuerpo => {
+    'eventoClienteId': eventoClienteId,
+    'asignacionJornadaId': asignacionJornadaId,
+    'capturadoEn': capturadoEn.toIso8601String(),
+  };
+}
+
+abstract interface class AlmacenEventosEjecucion {
+  Future<void> registrar(EventoEjecucionLocal evento);
+  Future<List<EventoEjecucionLocal>> listar();
+  Future<void> cambiarEstado(
+    String eventoClienteId,
+    EstadoSincronizacion estado,
+  );
+}

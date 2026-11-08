@@ -6,6 +6,7 @@ import { apiRegistroOperativo, type VinculoPersonaEmpresa } from '../../../admin
 import { apiVehiculos, type Vehiculo, type VinculoVehiculoEmpresa } from '../../../administracion/registro-operativo/api/vehiculos';
 import { cubreFecha, versionAplicable, fechaHoraLocal } from '../modelo/vigencia';
 import './jornadas.css';
+import { ResumenEjecucion } from '../../../ejecucion/jornadas/componentes/ResumenEjecucion';
 
 export function PaginaJornadas() {
   const [periodos, setPeriodos] = useState<PeriodoOpcion[]>([]);
@@ -164,6 +165,7 @@ export function PaginaJornadas() {
         <h3>Historial administrativo de asignaciones</h3>
         <ul>{historial.map(a => <li key={a.id}>{a.vehiculo.placa} · {a.responsable.nombres} · {a.vigenteDesde} — {a.vigenteHasta ?? 'Abierta'}
           {a.motivoCambio ? ` · Motivo: ${a.motivoCambio}` : ' · Asignación inicial'}</li>)}</ul>
+        <ResumenEjecucion key={seleccionada.jornada.id} jornadaId={seleccionada.jornada.id} />
       </section>}
     </fieldset>
   </main>;

@@ -6,6 +6,9 @@ import { apiJornadas as api, type DetalleJornada, type AsignacionJornada } from 
 import { apiRutas } from '../../rutas/api/rutas';
 import { apiRegistroOperativo } from '../../../administracion/registro-operativo/api/registroOperativo';
 import { apiVehiculos } from '../../../administracion/registro-operativo/api/vehiculos';
+vi.mock('../../../ejecucion/jornadas/componentes/ResumenEjecucion', () => ({
+  ResumenEjecucion: () => <section aria-label="Evidencia operativa">Consulta de evidencia</section>,
+}));
 
 const detalle: DetalleJornada = {
   jornada: { id: 'j1', periodoServicioId: 'periodo', rutaVersionId: 'rv1', inicioProgramado: '2026-05-10T12:00:00Z', finProgramado: null,

@@ -64,6 +64,20 @@ flutter pub get
 flutter run
 ```
 
+La captura local de INICIO/FIN se habilita únicamente en depuración, dentro de la
+pantalla técnica existente. No verifica identidad institucional ni ofrece «Mis jornadas».
+Con el backend en perfil `desarrollo-local`, use UUID de una jornada y asignación
+de prueba ya registradas:
+
+```powershell
+adb reverse tcp:8080 tcp:8080
+flutter run --dart-define=GAMW_EJECUCION_DESARROLLO=true --dart-define=GAMW_JORNADA_ID=UUID_JORNADA --dart-define=GAMW_ASIGNACION_JORNADA_ID=UUID_ASIGNACION
+```
+
+El adaptador usa `http://127.0.0.1:8080/api` y admite otra URL loopback mediante
+`GAMW_API_URL`. SQLite conserva la evidencia local y sus estados de sincronización;
+un conflicto requiere revisión y nunca traslada el evento a otra jornada.
+
 ## Contexto
 
 [Baseline 1.0 y reglas del proyecto](docs/context/00_README.md).

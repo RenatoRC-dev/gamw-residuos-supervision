@@ -37,6 +37,9 @@ public class RepositorioJornadasPostgres implements RepositorioJornadas {
     public List<AsignacionJornada> asignaciones(UUID id) {
         return jdbc.query("SELECT * FROM asignacion_jornada WHERE jornada_id=? ORDER BY vigente_desde,creado_en,id",this::leerAsignacion,id);
     }
+    public Optional<AsignacionJornada> asignacionPorId(UUID id) {
+        return jdbc.query("SELECT * FROM asignacion_jornada WHERE id=?",this::leerAsignacion,id).stream().findFirst();
+    }
     public void cerrarAsignacion(UUID id,Instant hasta) {
         jdbc.update("UPDATE asignacion_jornada SET vigente_hasta=? WHERE id=? AND vigente_hasta IS NULL",Timestamp.from(hasta),id);
     }
