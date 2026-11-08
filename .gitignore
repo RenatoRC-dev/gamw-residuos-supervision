@@ -1,0 +1,66 @@
+# Java / Maven (keep .mvn/ and mvnw scripts)
+**/target/
+*.class
+*.hprof
+
+# Node / Vite
+**/node_modules/
+**/dist/
+**/coverage/
+*.tsbuildinfo
+.npm/
+
+# Flutter / Dart (application lockfile stays versioned)
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/android/.gradle/
+**/android/local.properties
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local configuration / secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.key
+*.pem
+*.p12
+*.jks
+**/key.properties
+
+# Local logs / database / temporary artifacts
+*.log
+logs/
+.local/
+*.pid
+*.tmp
+*.bak
+*.dump
+*.backup
+*.db
+*.sqlite
+*.sqlite3
+pgdata/
+

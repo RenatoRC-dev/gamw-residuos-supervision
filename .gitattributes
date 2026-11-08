@@ -1,0 +1,11 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.jar binary
+*.zip binary
+# Preserve the existing context bytes when these files are eventually added.
+docs/context/** -text
+
