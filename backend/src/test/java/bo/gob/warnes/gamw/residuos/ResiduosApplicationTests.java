@@ -1,6 +1,6 @@
 package bo.gob.warnes.gamw.residuos;
 
-import bo.gob.warnes.gamw.residuos.modules.planning.routes.domain.RouteRepository;
+import bo.gob.warnes.gamw.residuos.modules.planificacion.rutas.dominio.RepositorioRuta;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("smoke")
 class ResiduosApplicationTests {
     @MockitoBean
-    private RouteRepository routes;
+    private RepositorioRuta rutas;
     @Autowired
     private ApplicationContext context;
 

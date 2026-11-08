@@ -10,10 +10,10 @@ main { max-width: 48rem; margin: 4rem auto; padding: 1.5rem; }
 h1 { line-height: 1.2; }
 a { color: #075f4b; }
 
-.routes-page { max-width: 90rem; margin: 1rem auto; }
-.routes-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); gap: 1.5rem; }
-.route-map { height: 32rem; width: 100%; border: 1px solid #a4b5b0; }
-.map-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; }
+.pagina-rutas { max-width: 90rem; margin: 1rem auto; }
+.disposicion-rutas { display: grid; grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr); gap: 1.5rem; }
+.mapa-ruta { height: 32rem; width: 100%; border: 1px solid #a4b5b0; }
+.barra-mapa { display: flex; flex-wrap: wrap; gap: .5rem; }
 button, input, select { font: inherit; padding: .5rem; }
 button { cursor: pointer; }
 button:disabled { cursor: default; opacity: .6; }
@@ -23,4 +23,4 @@ aside section { border-bottom: 1px solid #a4b5b0; padding-bottom: 1rem; }
 aside section button { margin: .2rem; }
 .error { color: #8c2020; }
 .success { color: #075f4b; }
-@media (max-width: 850px) { .routes-layout { grid-template-columns: 1fr; } }
+@media (max-width: 850px) { .disposicion-rutas { grid-template-columns: 1fr; } }

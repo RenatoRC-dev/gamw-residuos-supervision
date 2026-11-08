@@ -1,6 +1,6 @@
 package bo.gob.warnes.gamw.residuos.shared.config;
 
-import bo.gob.warnes.gamw.residuos.modules.planning.routes.domain.RouteRepository;
+import bo.gob.warnes.gamw.residuos.modules.planificacion.rutas.dominio.RepositorioRuta;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("smoke")
 class HealthEndpointTests {
     @MockitoBean
-    private RouteRepository routes;
+    private RepositorioRuta rutas;
     @Autowired
     private MockMvc mvc;
 
@@ -37,7 +37,7 @@ class HealthEndpointTests {
 
     @Test
     void deniesBusinessEndpointsWithoutDevelopmentProfile() throws Exception {
-        mvc.perform(get("/api/routes").header("X-GAMW-Development", "route-poc"))
+        mvc.perform(get("/api/rutas").header("X-GAMW-Development", "rutas-poc"))
                 .andExpect(status().isUnauthorized());
     }
 

@@ -39,7 +39,7 @@ docker compose -f compose.dev.yml up -d
 
 En Linux/macOS: `sh ./mvnw spring-boot:run`.
 
-Para la POC local de rutas, iniciar con `./mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=route-development"`.
+Para la POC local de rutas, iniciar con `./mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=desarrollo-rutas"`.
 Ese perfil permite únicamente acceso loopback con cabecera explícita y origen web
 permitido; no sustituye la autenticación ni los permisos institucionales pendientes.
 Sin el perfil, las APIs de negocio permanecen bloqueadas.
