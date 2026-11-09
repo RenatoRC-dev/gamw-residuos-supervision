@@ -9,6 +9,7 @@ public interface RepositorioJornadas {
     void insertar(Jornada jornada);
     Optional<Jornada> buscar(UUID id,boolean bloquear);
     List<Jornada> listar();
+    List<JornadaAsignada> asignadasAPersona(UUID personaId);
     void sustituir(UUID jornadaId,Instant actualizadoEn);
     void insertarAsignacion(AsignacionJornada asignacion);
     Optional<AsignacionJornada> actual(UUID jornadaId);

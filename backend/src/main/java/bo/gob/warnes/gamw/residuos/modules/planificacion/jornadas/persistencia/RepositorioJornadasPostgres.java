@@ -22,6 +22,17 @@ public class RepositorioJornadasPostgres implements RepositorioJornadas {
         return jdbc.query("SELECT * FROM jornada WHERE id=?" + (bloquear ? " FOR UPDATE" : ""),this::leerJornada,id).stream().findFirst();
     }
     public List<Jornada> listar() { return jdbc.query("SELECT * FROM jornada ORDER BY inicio_programado,id",this::leerJornada); }
+    public List<JornadaAsignada> asignadasAPersona(UUID personaId) {
+        return jdbc.query("""
+                SELECT j.id AS jornada_id,a.id AS asignacion_id,j.inicio_programado,j.fin_programado,
+                       j.vigente,a.vigente_desde,a.vigente_hasta
+                FROM asignacion_jornada a JOIN jornada j ON j.id=a.jornada_id
+                JOIN vinculo_persona_empresa v ON v.id=a.vinculo_persona_empresa_id
+                WHERE v.persona_id=? ORDER BY j.inicio_programado,j.id,a.vigente_desde,a.id
+                """, (r,i) -> new JornadaAsignada(r.getObject("jornada_id",UUID.class),r.getObject("asignacion_id",UUID.class),
+                instante(r,"inicio_programado"),instante(r,"fin_programado"),r.getBoolean("vigente"),
+                instante(r,"vigente_desde"),instante(r,"vigente_hasta")),personaId);
+    }
     public void sustituir(UUID id,Instant actualizadoEn) {
         jdbc.update("UPDATE jornada SET vigente=false,actualizado_en=? WHERE id=? AND vigente=true",Timestamp.from(actualizadoEn),id);
     }

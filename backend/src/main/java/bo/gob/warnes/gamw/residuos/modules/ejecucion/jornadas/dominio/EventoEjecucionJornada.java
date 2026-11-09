@@ -4,7 +4,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record EventoEjecucionJornada(UUID id,UUID eventoClienteId,UUID jornadaId,UUID asignacionJornadaId,
-        TipoEventoEjecucion tipoEvento,Instant capturadoEn,Instant recibidoEn) {
+        TipoEventoEjecucion tipoEvento,Instant capturadoEn,Instant recibidoEn,UUID usuarioId) {
+    /** Compatibilidad con evidencia histórica y el flujo técnico de desarrollo-local. */
+    public EventoEjecucionJornada(UUID id,UUID eventoClienteId,UUID jornadaId,UUID asignacionJornadaId,
+            TipoEventoEjecucion tipoEvento,Instant capturadoEn,Instant recibidoEn) {
+        this(id,eventoClienteId,jornadaId,asignacionJornadaId,tipoEvento,capturadoEn,recibidoEn,null);
+    }
     public EventoEjecucionJornada {
         if (id == null || eventoClienteId == null || jornadaId == null || asignacionJornadaId == null ||
                 tipoEvento == null || capturadoEn == null || recibidoEn == null) {

@@ -1,7 +1,7 @@
 import 'dart:math';
 import '../dominio/evento_ejecucion_local.dart';
 
-enum ResultadoEnvio { sincronizado, conflicto, pendiente }
+enum ResultadoEnvio { sincronizado, conflicto, pendiente, bloqueado }
 
 abstract interface class ClienteEventosEjecucion {
   Future<ResultadoEnvio> enviar(EventoEjecucionLocal evento);
@@ -42,6 +42,7 @@ class ColaEjecucion {
     String jornadaId,
     String asignacionId,
     TipoEventoEjecucion tipo,
+    {String? usuarioIdCaptura}
   ) {
     final id = _generarId();
     final captura = _ahora().toUtc();
@@ -51,6 +52,7 @@ class ColaEjecucion {
       asignacionJornadaId: asignacionId,
       tipoEvento: tipo,
       capturadoEn: captura,
+      usuarioIdCaptura: usuarioIdCaptura,
     );
     return _serial(() async {
       await almacen.registrar(evento);
@@ -90,6 +92,10 @@ class ColaEjecucion {
         break; // Sin red, timeout o respuesta perdida: no alterar la evidencia ni su ID.
       }
       if (resultado == ResultadoEnvio.pendiente) break;
+      if (resultado == ResultadoEnvio.bloqueado) {
+        if (evento.tipoEvento == TipoEventoEjecucion.inicio) bloqueadas.add(evento.jornadaId);
+        continue;
+      }
       await almacen.cambiarEstado(
         evento.eventoClienteId,
         resultado == ResultadoEnvio.sincronizado

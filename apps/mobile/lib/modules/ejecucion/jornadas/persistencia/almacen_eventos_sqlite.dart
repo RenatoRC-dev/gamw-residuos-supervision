@@ -17,7 +17,7 @@ class AlmacenEventosSqlite implements AlmacenEventosEjecucion {
     final db = await motor.openDatabase(
       archivo,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
         onConfigure: (db) async {
           await db.execute('PRAGMA synchronous = FULL');
         },
@@ -29,17 +29,19 @@ class AlmacenEventosSqlite implements AlmacenEventosEjecucion {
             asignacion_jornada_id TEXT NOT NULL,
             tipo_evento TEXT NOT NULL CHECK(tipo_evento IN ('INICIO','FIN')),
             capturado_en TEXT NOT NULL,
+            usuario_id_captura TEXT,
             estado_sincronizacion TEXT NOT NULL CHECK(estado_sincronizacion IN ('PENDIENTE','SINCRONIZADO','CONFLICTO')),
             UNIQUE(jornada_id,tipo_evento)
           )
         ''');
-          await db.execute('''
-          CREATE TRIGGER evento_local_identidad_inmutable BEFORE UPDATE ON evento_ejecucion_local
-          WHEN NEW.evento_cliente_id <> OLD.evento_cliente_id OR NEW.jornada_id <> OLD.jornada_id
-            OR NEW.asignacion_jornada_id <> OLD.asignacion_jornada_id
-            OR NEW.tipo_evento <> OLD.tipo_evento OR NEW.capturado_en <> OLD.capturado_en
-          BEGIN SELECT RAISE(ABORT,'La evidencia local es inmutable'); END
-        ''');
+          await _protegerIdentidad(db);
+        },
+        onUpgrade: (db, anterior, nueva) async {
+          if (anterior < 2) {
+            await db.execute('ALTER TABLE evento_ejecucion_local ADD COLUMN usuario_id_captura TEXT');
+            await db.execute('DROP TRIGGER IF EXISTS evento_local_identidad_inmutable');
+            await _protegerIdentidad(db);
+          }
         },
       ),
     );
@@ -79,6 +81,7 @@ class AlmacenEventosSqlite implements AlmacenEventosEjecucion {
       'asignacion_jornada_id': e.asignacionJornadaId,
       'tipo_evento': e.tipoEvento.codigo,
       'capturado_en': e.capturadoEn.toIso8601String(),
+      'usuario_id_captura': e.usuarioIdCaptura,
       'estado_sincronizacion': EstadoSincronizacion.pendiente.codigo,
     });
   });
@@ -96,6 +99,7 @@ class AlmacenEventosSqlite implements AlmacenEventosEjecucion {
               (t) => t.codigo == f['tipo_evento'],
             ),
             capturadoEn: DateTime.parse(f['capturado_en'] as String),
+            usuarioIdCaptura: f['usuario_id_captura'] as String?,
             estadoSincronizacion: EstadoSincronizacion.values.firstWhere(
               (s) => s.codigo == f['estado_sincronizacion'],
             ),
@@ -124,4 +128,13 @@ class AlmacenEventosSqlite implements AlmacenEventosEjecucion {
   }
 
   Future<void> cerrar() => _db.close();
+
+  static Future<void> _protegerIdentidad(Database db) => db.execute('''
+    CREATE TRIGGER evento_local_identidad_inmutable BEFORE UPDATE ON evento_ejecucion_local
+    WHEN NEW.evento_cliente_id <> OLD.evento_cliente_id OR NEW.jornada_id <> OLD.jornada_id
+      OR NEW.asignacion_jornada_id <> OLD.asignacion_jornada_id
+      OR NEW.tipo_evento <> OLD.tipo_evento OR NEW.capturado_en <> OLD.capturado_en
+      OR NEW.usuario_id_captura IS NOT OLD.usuario_id_captura
+    BEGIN SELECT RAISE(ABORT,'La evidencia local es inmutable'); END
+  ''');
 }

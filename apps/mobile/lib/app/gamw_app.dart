@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../modules/ejecucion/jornadas/presentacion/panel_ejecucion_tecnica.dart';
+import '../modules/ejecucion/jornadas/presentacion/pagina_operacion.dart';
 
 class GamwApp extends StatelessWidget {
   const GamwApp({super.key});
@@ -11,7 +12,7 @@ class GamwApp extends StatelessWidget {
       title: 'GAMW',
       theme: ThemeData(colorSchemeSeed: const Color(0xFF075F4B)),
       home: Scaffold(
-        appBar: AppBar(title: const Text('GAMW · Base técnica')),
+        appBar: AppBar(title: const Text('GAMW · Ejecución operativa')),
         body: SafeArea(
           child: Padding(
             padding: EdgeInsets.all(24),
@@ -19,7 +20,6 @@ class GamwApp extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('PHASE 0 — ENGINEERING FOUNDATION'),
                   if (kDebugMode &&
                       const bool.fromEnvironment('GAMW_EJECUCION_DESARROLLO'))
                     const PanelEjecucionTecnica(
@@ -31,7 +31,9 @@ class GamwApp extends StatelessWidget {
                         'GAMW_API_URL',
                         defaultValue: 'http://127.0.0.1:8080/api',
                       ),
-                    ),
+                    )
+                  else
+                    const PaginaOperacion(),
                 ],
               ),
             ),

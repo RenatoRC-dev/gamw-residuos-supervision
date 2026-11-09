@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Opt-in: uses only the dedicated PostgreSQL database configured by DB_* variables. */
 @SpringBootTest
-class FlywayBaselineIT {
+class FlywayBaselineIT extends IntegracionPostgresV8 {
     @Autowired
     private Flyway flyway;
 

@@ -18,14 +18,14 @@ public class RepositorioEventosEjecucionPostgres implements RepositorioEventosEj
     }
     public Optional<EventoEjecucionJornada> insertarSiAusente(EventoEjecucionJornada e) {
         return jdbc.query("""
-                INSERT INTO evento_ejecucion_jornada(id,evento_cliente_id,jornada_id,asignacion_jornada_id,tipo_evento,capturado_en,recibido_en)
-                VALUES (?,?,?,?,?,?,?) ON CONFLICT DO NOTHING RETURNING *
+                INSERT INTO evento_ejecucion_jornada(id,evento_cliente_id,jornada_id,asignacion_jornada_id,tipo_evento,capturado_en,recibido_en,usuario_id)
+                VALUES (?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING RETURNING *
                 """,this::leer,e.id(),e.eventoClienteId(),e.jornadaId(),e.asignacionJornadaId(),e.tipoEvento().name(),
-                Timestamp.from(e.capturadoEn()),Timestamp.from(e.recibidoEn())).stream().findFirst();
+                Timestamp.from(e.capturadoEn()),Timestamp.from(e.recibidoEn()),e.usuarioId()).stream().findFirst();
     }
     private EventoEjecucionJornada leer(ResultSet r,int i) throws SQLException {
         return new EventoEjecucionJornada(r.getObject("id",UUID.class),r.getObject("evento_cliente_id",UUID.class),r.getObject("jornada_id",UUID.class),
                 r.getObject("asignacion_jornada_id",UUID.class),TipoEventoEjecucion.valueOf(r.getString("tipo_evento")),
-                r.getTimestamp("capturado_en").toInstant(),r.getTimestamp("recibido_en").toInstant());
+                r.getTimestamp("capturado_en").toInstant(),r.getTimestamp("recibido_en").toInstant(),r.getObject("usuario_id",UUID.class));
     }
 }

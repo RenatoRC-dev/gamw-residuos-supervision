@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("desarrollo-local")
-class EventosEjecucionIT {
+class EventosEjecucionIT extends bo.gob.warnes.gamw.residuos.shared.config.IntegracionPostgresV8 {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
@@ -168,7 +168,7 @@ class EventosEjecucionIT {
         falla("UPDATE evento_ejecucion_jornada SET recibido_en=recibido_en+interval '1 second' WHERE id=?",id);
         assertThat(lectura().get("inicio")).isEqualTo(e);
         assertThat(jdbc.queryForList("SELECT column_name FROM information_schema.columns WHERE table_name='evento_ejecucion_jornada' ORDER BY ordinal_position",String.class))
-            .containsExactly("id","evento_cliente_id","jornada_id","asignacion_jornada_id","tipo_evento","capturado_en","recibido_en");
+            .containsExactly("id","evento_cliente_id","jornada_id","asignacion_jornada_id","tipo_evento","capturado_en","recibido_en","usuario_id");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM pg_constraint WHERE contype='f' AND conrelid='evento_ejecucion_jornada'::regclass AND confdeltype <> 'a'",Integer.class)).isZero();
     }
     @Test void seguridadLocalSinSuplantacionDeActor() throws Exception {

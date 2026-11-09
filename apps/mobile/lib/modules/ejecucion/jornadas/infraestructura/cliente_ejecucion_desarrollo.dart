@@ -19,6 +19,8 @@ class ClienteEjecucionDesarrollo implements ClienteEventosEjecucion {
 
   @override
   Future<ResultadoEnvio> enviar(EventoEjecucionLocal evento) async {
+    // Un evento institucional nunca puede degradarse al transporte técnico sin JWT.
+    if (evento.usuarioIdCaptura != null) return ResultadoEnvio.pendiente;
     final url = Uri.parse(
       '${base.toString().replaceAll(RegExp(r"/+$"), "")}/jornadas/${evento.jornadaId}/ejecucion/${evento.tipoEvento == TipoEventoEjecucion.inicio ? "inicio" : "fin"}',
     );

@@ -23,6 +23,7 @@ class EventoEjecucionLocal {
     required this.tipoEvento,
     required DateTime capturadoEn,
     this.estadoSincronizacion = EstadoSincronizacion.pendiente,
+    this.usuarioIdCaptura,
   }) : capturadoEn = capturadoEn.toUtc() {
     final uuid = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -31,7 +32,7 @@ class EventoEjecucionLocal {
       eventoClienteId,
       jornadaId,
       asignacionJornadaId,
-    ].every(uuid.hasMatch)) {
+    ].every(uuid.hasMatch) || (usuarioIdCaptura != null && !uuid.hasMatch(usuarioIdCaptura!))) {
       throw ArgumentError('Los identificadores deben ser UUID válidos.');
     }
   }
@@ -42,6 +43,7 @@ class EventoEjecucionLocal {
   final TipoEventoEjecucion tipoEvento;
   final DateTime capturadoEn;
   final EstadoSincronizacion estadoSincronizacion;
+  final String? usuarioIdCaptura;
 
   Map<String, Object?> get cuerpo => {
     'eventoClienteId': eventoClienteId,

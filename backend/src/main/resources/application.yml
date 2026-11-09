@@ -3,6 +3,8 @@ spring:
     import: optional:file:.env[.properties]
   application:
     name: gamw-residuos
+  autoconfigure:
+    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -25,3 +27,9 @@ server:
     include-message: never
     include-stacktrace: never
     include-binding-errors: never
+gamw:
+  seguridad:
+    jwt:
+      secreto: ${GAMW_JWT_SECRET:}
+      duracion: ${GAMW_JWT_DURATION:PT30M}
+      emisor: ${GAMW_JWT_ISSUER:gamw-residuos}
