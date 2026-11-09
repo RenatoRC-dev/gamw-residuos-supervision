@@ -8,8 +8,10 @@ abstract interface class AlmacenSesion {
 
 /// Solo token y respuesta de identidad del servidor; nunca contraseñas.
 class AlmacenSesionSeguro implements AlmacenSesion {
+  // Fallar sin borrar claves/caché existentes si Android no puede descifrarlas.
+  static const opcionesAndroid = AndroidOptions(resetOnError: false);
   AlmacenSesionSeguro({FlutterSecureStorage? storage, String clave = 'gamw.sesion.autenticada'})
-    : _storage = storage ?? const FlutterSecureStorage(), _clave = clave;
+    : _storage = storage ?? const FlutterSecureStorage(aOptions: opcionesAndroid), _clave = clave;
   final FlutterSecureStorage _storage;
   final String _clave;
   @override

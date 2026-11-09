@@ -1,5 +1,7 @@
 package bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.api;
 
+import bo.gob.warnes.gamw.residuos.shared.config.IntegracionPostgresV8;
+
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("desarrollo-local")
-class RegistroOperativoIT {
+class RegistroOperativoIT extends IntegracionPostgresV8 {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;

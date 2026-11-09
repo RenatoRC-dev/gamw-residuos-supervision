@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
+import 'package:gamw_mobile/modules/ejecucion/jornadas/persistencia/almacen_eventos_sqlite.dart';
+import 'package:gamw_mobile/modules/ejecucion/gps/dominio/posicion_gps_local.dart';
 import 'package:gamw_mobile/shared/api/cliente_backend.dart';
 import 'package:gamw_mobile/shared/auth/almacen_sesion_seguro.dart';
 import 'package:gamw_mobile/shared/auth/sesion.dart';
@@ -24,6 +27,17 @@ class _Almacen implements AlmacenEventosEjecucion {
       asignacionJornadaId:e.asignacionJornadaId,tipoEvento:e.tipoEvento,capturadoEn:e.capturadoEn,
       usuarioIdCaptura:e.usuarioIdCaptura,estadoSincronizacion:estado);
   }
+}
+// Doble de control, sin proveedor ni coordenadas. La persistencia SQLite tiene sus tests propios.
+class _AlmacenGps extends _Almacen implements AlmacenEventosSqlite {
+  Map<String,Object?>? contexto;
+  @override String get ruta => '/db/control-gps.db';
+  @override Future<Map<String,Object?>?> contextoGpsActivo() async => contexto;
+  @override Future<List<PosicionGpsLocal>> listarPosiciones(String usuario) async => [];
+  @override Future<bool> hayGpsNoAceptado(String jornada) async => false;
+  @override Future<void> cerrar() async { }
+  @override Future<void> registrarPosicion(PosicionGpsLocal p) async => throw UnsupportedError('No hay proveedor en este test de control');
+  @override Future<void> estadoPosicion(String captura,EstadoSincronizacion estado,String? error) async { }
 }
 class _Backend extends ClienteBackend {
   _Backend():super(Uri.parse('http://127.0.0.1:1/api'));
@@ -58,6 +72,43 @@ class _Cache implements CacheJornadas {
   @override Future<void> guardar(String id,List<Map<String,dynamic>> j) async { }
 }
 void main() {
+  testWidgets('expiración no corta GPS local; reautenticar otra cuenta detiene contexto anterior sin enviar', (tester) async {
+    final almacen=_AlmacenGps();
+    final sesion=GestorSesion(_Backend(),_Seguro());
+    await sesion.iniciar('Cuenta de prueba','clave');
+    final control=<String>[];
+    const canal=MethodChannel('gamw/gps');
+    // Solo control del servicio; no se simulan lecturas ni coordenadas GPS.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(canal,(call) async {
+      control.add(call.method);
+      if(call.method=='permisos') return true;
+      if(call.method=='estado') return 'Esperando ubicación';
+      if(call.method=='iniciar') {
+        almacen.contexto={'usuario_id_captura':_Backend.id};
+        return 'Esperando ubicación';
+      }
+      if(call.method=='detener') almacen.contexto=null;
+      return null;
+    });
+    await tester.pumpWidget(MaterialApp(home:Scaffold(body:SingleChildScrollView(child:PaginaOperacion(sesiones:sesion,almacen:almacen)))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(DropdownButton<String>)); await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('vigente').last); await tester.pumpAndSettle();
+    await tester.tap(find.text('Registrar INICIO')); await tester.pumpAndSettle();
+    expect(control,contains('iniciar'));
+    await sesion.invalidar(sesion.actual!.token); await tester.pumpAndSettle();
+    expect(control, isNot(contains('detener')));
+    expect((await almacen.contextoGpsActivo())!['usuario_id_captura'],_Backend.id);
+    await tester.enterText(find.byType(TextField).first,'Otra cuenta');
+    await tester.enterText(find.byType(TextField).last,'clave');
+    await tester.tap(find.text('Ingresar')); await tester.pumpAndSettle();
+    expect(control,contains('detener')); expect(await almacen.contextoGpsActivo(),isNull);
+    expect((sesion.api as _Backend).envios,0);
+    expect((await almacen.listar()).single.usuarioIdCaptura,_Backend.id);
+    await tester.pumpWidget(const SizedBox.shrink());
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(canal,null);
+    sesion.dispose(); sesion.api.cerrar(); await almacen.cerrar();
+  });
   testWidgets('login, selección propia, INICIO/FIN y logout conservan evidencia', (tester) async {
     final api=_Backend(), seguro=_Seguro(), almacen=_Almacen();
     final sesion=GestorSesion(api,seguro);

@@ -38,18 +38,18 @@ class IdentidadPostgresIT {
         return new JdbcTemplate(new SingleConnectionDataSource(conexion, true));
     }
 
-    @Test void instalaV1AV8YValidaSinCambiosAdicionales() {
+    @Test void instalaV1AV9YValidaSinCambiosAdicionales() {
         var entorno = PostgresV8Aislado.obtener();
-        assertThat(entorno.instalacionLimpia.migrationsExecuted).isEqualTo(8);
+        assertThat(entorno.instalacionLimpia.migrationsExecuted).isEqualTo(9);
         var flyway = entorno.flyway(false, null);
-        assertThat(flyway.info().applied()).hasSize(8);
+        assertThat(flyway.info().applied()).hasSize(9);
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(jdbc.queryForObject("SELECT postgis_lib_version()", String.class)).startsWith("3.");
         assertThat(jdbc.queryForObject("SELECT version()", String.class)).contains("PostgreSQL 16.6");
     }
 
-    @Test void actualizaV7AV8SinReescribirEvidenciaNiHistoriaFlyway() throws Exception {
+    @Test void actualizaV7AV8AV9SinReescribirEvidenciaNiHistoriaFlyway() throws Exception {
         var entorno = PostgresV8Aislado.obtener();
         assertThat(entorno.instalacionV7.migrationsExecuted).isEqualTo(7);
         try (var actualizacion = entorno.conexion(true)) {
@@ -60,12 +60,16 @@ class IdentidadPostgresIT {
             String columnas = "id,evento_cliente_id,jornada_id,asignacion_jornada_id,tipo_evento,capturado_en,recibido_en";
             var evidencia = sql.queryForList("SELECT " + columnas + " FROM evento_ejecucion_jornada ORDER BY tipo_evento");
             var historia = sql.queryForList("SELECT installed_rank,version,checksum,success,installed_on FROM flyway_schema_history ORDER BY installed_rank");
+            var v8=entorno.flyway(true,"8");
+            assertThat(v8.migrate().migrationsExecuted).isEqualTo(1);
+            var evidenciaV8=sql.queryForList("SELECT * FROM evento_ejecucion_jornada ORDER BY tipo_evento");
             var flyway = entorno.flyway(true, null);
             assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
             assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
+            assertThat(sql.queryForList("SELECT * FROM evento_ejecucion_jornada ORDER BY tipo_evento")).isEqualTo(evidenciaV8);
             assertThat(sql.queryForList("SELECT " + columnas + " FROM evento_ejecucion_jornada ORDER BY tipo_evento")).isEqualTo(evidencia);
             assertThat(sql.queryForObject("SELECT count(*) FROM evento_ejecucion_jornada WHERE usuario_id IS NULL", Integer.class)).isEqualTo(2);
-            assertThat(sql.queryForList("SELECT installed_rank,version,checksum,success,installed_on FROM flyway_schema_history WHERE version <> '8' ORDER BY installed_rank")).isEqualTo(historia);
+            assertThat(sql.queryForList("SELECT installed_rank,version,checksum,success,installed_on FROM flyway_schema_history WHERE version NOT IN ('8','9') ORDER BY installed_rank")).isEqualTo(historia);
             assertThat(sql.queryForList("SELECT * FROM usuario")).isEmpty();
             assertThat(flyway.migrate().migrationsExecuted).isZero();
             var repositorio = new bo.gob.warnes.gamw.residuos.modules.ejecucion.jornadas.persistencia.RepositorioEventosEjecucionPostgres(sql);

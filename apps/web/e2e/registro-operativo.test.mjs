@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { baseAislada } from './entorno-aislado.mjs';
 import { chromium } from 'playwright';
+const base = baseAislada();
 
 // CU-04/CU-05/CU-07 parcial. Solo datos sintéticos propios; sin informes ni capturas.
 test('Slice 2A: registro operativo e historia persona-empresa desde la web', { timeout: 90000 }, async () => {
@@ -15,7 +16,7 @@ test('Slice 2A: registro operativo e historia persona-empresa desde la web', { t
   const errores = [];
   page.on('pageerror', e => errores.push(e.message));
   async function leer(ruta) {
-    const respuesta = await page.request.get(`http://127.0.0.1:5173/api${ruta}`, { headers });
+    const respuesta = await page.request.get(`${base}/api${ruta}`, { headers });
     assert.equal(respuesta.status(), 200); return respuesta.json();
   }
   async function guardar(boton, ruta, metodo, estado) {
@@ -31,7 +32,7 @@ test('Slice 2A: registro operativo e historia persona-empresa desde la web', { t
     return datos;
   }
   try {
-    await page.goto('http://127.0.0.1:5173/operadores');
+    await page.goto(`${base}/operadores`);
     await page.getByLabel('Razón social').fill(marca);
     const empresa = await guardar('Crear empresa', '/empresas-operadoras', 'POST', 201);
     empresasPropias.push(empresa.id);
@@ -118,18 +119,6 @@ test('Slice 2A: registro operativo e historia persona-empresa desde la web', { t
     assert.deepEqual(errores, []);
   } finally {
     await browser.close();
-    for (const id of [...empresasPropias, ...personasPropias]) assert.match(id, /^[0-9a-f-]{36}$/);
-    const sql = [
-      ...empresasPropias.flatMap(id => [
-        `DELETE FROM vinculo_persona_funcion WHERE vinculo_persona_empresa_id IN (SELECT id FROM vinculo_persona_empresa WHERE empresa_operadora_id='${id}');`,
-        `DELETE FROM vinculo_persona_empresa WHERE empresa_operadora_id='${id}';`,
-        `DELETE FROM periodo_servicio WHERE empresa_operadora_id='${id}';`,
-        `DELETE FROM empresa_operadora WHERE id='${id}';`,
-      ]),
-      ...personasPropias.map(id => `DELETE FROM persona_natural WHERE id='${id}';`),
-    ].join('\n');
-    if (sql) execFileSync('docker', ['compose', '-f', 'compose.dev.yml', 'exec', '-T', 'db', 'psql', '-X',
-      '-U', 'gamw_app_dev', '-d', 'gamw_residuos_dev', '-v', 'ON_ERROR_STOP=1', '-c', sql],
-    { cwd: new URL('../../../backend/', import.meta.url), stdio: 'pipe' });
+    // Fixtures conservados en el clúster desechable; nunca limpiar una base existente.
   }
 });

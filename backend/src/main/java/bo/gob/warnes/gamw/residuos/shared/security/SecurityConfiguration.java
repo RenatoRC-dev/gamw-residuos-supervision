@@ -32,7 +32,18 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/autenticacion/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/autenticacion/actual").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/mis-jornadas").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/monitoreo/jornadas").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/fiscalizacion/jornadas", "/api/fiscalizacion/jornadas/*",
+                            "/api/fiscalizacion/jornadas/*/gps", "/api/fiscalizacion/jornadas/*/evidencias/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/fiscalizacion/jornadas/*/inspecciones", "/api/fiscalizacion/jornadas/*/resultado").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/referencias-espaciales", "/api/referencias-espaciales/versiones-ruta",
+                            "/api/revision-gps/jornadas/*/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/referencias-espaciales", "/api/referencias-espaciales/*/versiones",
+                            "/api/referencias-espaciales/*/cierre").authenticated()
+                        // La fachada comprueba concesión municipal vigente antes de leer datos.
+                        .requestMatchers(HttpMethod.GET, "/api/trayectorias/jornadas", "/api/trayectorias/jornadas/*").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/jornadas/*/ejecucion/inicio", "/api/jornadas/*/ejecucion/fin").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/jornadas/*/ejecucion/posiciones-gps").authenticated()
                         .anyRequest().denyAll())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/autenticacion/login"))

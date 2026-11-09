@@ -25,13 +25,29 @@ public class RepositorioJornadasPostgres implements RepositorioJornadas {
     public List<JornadaAsignada> asignadasAPersona(UUID personaId) {
         return jdbc.query("""
                 SELECT j.id AS jornada_id,a.id AS asignacion_id,j.inicio_programado,j.fin_programado,
-                       j.vigente,a.vigente_desde,a.vigente_hasta
+                       j.vigente,a.vigente_desde,a.vigente_hasta,
+                       ps.id AS periodo_id,ps.fecha_inicio,ps.fecha_fin,ps.empresa_operadora_id,e.razon_social,
+                       r.id AS ruta_id,r.codigo,r.nombre,rv.id AS ruta_version_id,rv.numero_version,
+                       ve.id AS vehiculo_id,ve.placa,ve.anio,a.vinculo_persona_empresa_id,a.vinculo_vehiculo_empresa_id
                 FROM asignacion_jornada a JOIN jornada j ON j.id=a.jornada_id
                 JOIN vinculo_persona_empresa v ON v.id=a.vinculo_persona_empresa_id
+                JOIN periodo_servicio ps ON ps.id=j.periodo_servicio_id
+                JOIN empresa_operadora e ON e.id=ps.empresa_operadora_id
+                JOIN ruta_version rv ON rv.id=j.ruta_version_id
+                JOIN ruta r ON r.id=rv.ruta_id
+                JOIN vinculo_vehiculo_empresa vv ON vv.id=a.vinculo_vehiculo_empresa_id
+                JOIN vehiculo ve ON ve.id=vv.vehiculo_id
                 WHERE v.persona_id=? ORDER BY j.inicio_programado,j.id,a.vigente_desde,a.id
                 """, (r,i) -> new JornadaAsignada(r.getObject("jornada_id",UUID.class),r.getObject("asignacion_id",UUID.class),
                 instante(r,"inicio_programado"),instante(r,"fin_programado"),r.getBoolean("vigente"),
-                instante(r,"vigente_desde"),instante(r,"vigente_hasta")),personaId);
+                instante(r,"vigente_desde"),instante(r,"vigente_hasta"),
+                new ContextoOperativoJornada(
+                    new ContextoOperativoJornada.Periodo(r.getObject("periodo_id",UUID.class),r.getObject("fecha_inicio",java.time.LocalDate.class),
+                        r.getObject("fecha_fin",java.time.LocalDate.class),r.getObject("empresa_operadora_id",UUID.class),r.getString("razon_social")),
+                    new ContextoOperativoJornada.RutaReferencia(r.getObject("ruta_id",UUID.class),r.getString("codigo"),r.getString("nombre"),
+                        r.getObject("ruta_version_id",UUID.class),r.getInt("numero_version")),
+                    new ContextoOperativoJornada.VehiculoAsignado(r.getObject("vehiculo_id",UUID.class),r.getString("placa"),r.getObject("anio",Integer.class)),
+                    r.getObject("vinculo_persona_empresa_id",UUID.class),r.getObject("vinculo_vehiculo_empresa_id",UUID.class))),personaId);
     }
     public void sustituir(UUID id,Instant actualizadoEn) {
         jdbc.update("UPDATE jornada SET vigente=false,actualizado_en=? WHERE id=? AND vigente=true",Timestamp.from(actualizadoEn),id);

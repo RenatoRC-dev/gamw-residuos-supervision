@@ -1,5 +1,7 @@
 package bo.gob.warnes.gamw.residuos.modules.planificacion.rutas.api;
 
+import bo.gob.warnes.gamw.residuos.shared.config.IntegracionPostgresV8;
+
 import java.util.*;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.*;
@@ -22,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("desarrollo-local")
-class RutasReferenciaIT {
+class RutasReferenciaIT extends IntegracionPostgresV8 {
     private static final String START = "2026-01-01T00:00:00Z";
     private static final String NEXT = "2026-01-02T00:00:00Z";
     private static final List<List<Double>> FIRST = List.of(List.of(-10.12345678901234, 20.5), List.of(-10.2, 20.6));

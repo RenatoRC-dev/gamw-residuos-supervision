@@ -22,12 +22,14 @@ class ColaEjecucion {
     this.cliente, {
     DateTime Function()? ahora,
     String Function()? generarId,
+    this.sincronizarGps,
   }) : _ahora = ahora ?? DateTime.now,
        _generarId = generarId ?? generarUuidEvento;
   final AlmacenEventosEjecucion almacen;
   final ClienteEventosEjecucion cliente;
   final DateTime Function() _ahora;
   final String Function() _generarId;
+  final Future<bool> Function(String jornada)? sincronizarGps;
   Future<void> _turno = Future<void>.value();
   Future<void> _turnoEnvio = Future<void>.value();
 
@@ -73,6 +75,9 @@ class ColaEjecucion {
 
   Future<void> _sincronizarPendientes() async {
     final eventos = await almacen.listar();
+    final gpsIntentado=<String>{};
+    final iniciosAceptados=eventos.where((e)=>e.tipoEvento==TipoEventoEjecucion.inicio &&
+      e.estadoSincronizacion==EstadoSincronizacion.sincronizado).map((e)=>e.jornadaId).toSet();
     final bloqueadas = eventos
         .where(
           (e) =>
@@ -85,6 +90,11 @@ class ColaEjecucion {
       (e) => e.estadoSincronizacion == EstadoSincronizacion.pendiente,
     )) {
       if (bloqueadas.contains(evento.jornadaId)) continue;
+      if(evento.tipoEvento==TipoEventoEjecucion.fin && sincronizarGps!=null) {
+        if(!iniciosAceptados.contains(evento.jornadaId)) continue;
+        gpsIntentado.add(evento.jornadaId);
+        if(!await sincronizarGps!(evento.jornadaId)) { bloqueadas.add(evento.jornadaId); continue; }
+      }
       ResultadoEnvio resultado;
       try {
         resultado = await cliente.enviar(evento);
@@ -102,12 +112,18 @@ class ColaEjecucion {
             ? EstadoSincronizacion.sincronizado
             : EstadoSincronizacion.conflicto,
       );
+      if(resultado==ResultadoEnvio.sincronizado && evento.tipoEvento==TipoEventoEjecucion.inicio) {
+        iniciosAceptados.add(evento.jornadaId);
+      }
       if (resultado == ResultadoEnvio.conflicto &&
           evento.tipoEvento == TipoEventoEjecucion.inicio) {
         bloqueadas.add(
           evento.jornadaId,
         ); // No enviar FIN de un INICIO que requiere resolución.
       }
+    }
+    for(final jornada in iniciosAceptados.difference(bloqueadas).difference(gpsIntentado)) {
+      if(sincronizarGps!=null) await sincronizarGps!(jornada);
     }
   }
 }

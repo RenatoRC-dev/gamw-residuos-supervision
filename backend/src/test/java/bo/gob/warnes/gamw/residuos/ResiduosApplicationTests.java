@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("smoke")
 class ResiduosApplicationTests {
+    @MockitoBean private org.springframework.jdbc.core.JdbcTemplate consultasSql;
     @MockitoBean
     private RepositorioRuta rutas;
     @MockitoBean
@@ -23,6 +24,8 @@ class ResiduosApplicationTests {
     private bo.gob.warnes.gamw.residuos.modules.planificacion.jornadas.dominio.RepositorioJornadas jornadas;
     @MockitoBean
     private bo.gob.warnes.gamw.residuos.modules.ejecucion.jornadas.dominio.RepositorioEventosEjecucion eventos;
+    @MockitoBean
+    private bo.gob.warnes.gamw.residuos.modules.ejecucion.gps.dominio.RepositorioPosicionesGps posicionesGps;
     @Autowired
     private ApplicationContext context;
 

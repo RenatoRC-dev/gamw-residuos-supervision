@@ -3,6 +3,7 @@ package bo.gob.warnes.gamw.residuos.shared.config;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -157,7 +158,9 @@ public final class PostgresV8Aislado implements AutoCloseable {
                 throw new IllegalStateException(herramienta + ": tiempo de espera agotado");
             }
             if (proceso.exitValue() != 0) throw new IllegalStateException(herramienta + ": exit=" + proceso.exitValue() + "; salida: " + salida);
-            return Files.readString(salida, StandardCharsets.UTF_8);
+            var codificacionSalida = Charset.forName(
+                    System.getProperty("native.encoding", "windows-1252"));
+            return Files.readString(salida, codificacionSalida);
     }
 
     private void verificarProcesoPropio() throws Exception {

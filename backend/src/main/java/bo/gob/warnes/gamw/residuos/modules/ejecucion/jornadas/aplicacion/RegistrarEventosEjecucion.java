@@ -78,6 +78,21 @@ public class RegistrarEventosEjecucion {
         var vinculo = registro.vinculoPorId(asignacion.vinculoPersonaEmpresaId()).orElseThrow(EjecucionNoAutorizada::new);
         if (!actor.personaNaturalId().equals(vinculo.personaId())) throw new EjecucionNoAutorizada();
     }
+    /** Comparte con GPS la pertenencia y el intervalo histórico de C1, sin reglas nuevas de vigencia. */
+    public void autorizarCaptura(UUID jornadaId,UUID asignacionId,Instant captura,UsuarioAutenticado actor) {
+        var asignacion=autorizarAsignacionHistorica(jornadaId,asignacionId,actor);
+        if (captura.isBefore(asignacion.vigenteDesde()) ||
+                (asignacion.vigenteHasta()!=null && captura.isAfter(asignacion.vigenteHasta()))) {
+            throw new IllegalArgumentException("La captura no pertenece al intervalo administrativo de la asignación histórica.");
+        }
+    }
+    public AsignacionJornada autorizarAsignacionHistorica(UUID jornadaId,UUID asignacionId,UsuarioAutenticado actor) {
+        var asignacion = jornadas.asignacionPorId(asignacionId)
+                .orElseThrow(() -> new ReferenciaPlanificacionNoEncontrada("Asignación no encontrada."));
+        if (!asignacion.jornadaId().equals(jornadaId)) throw new EjecucionNoAutorizada();
+        autorizar(asignacion,Objects.requireNonNull(actor));
+        return asignacion;
+    }
     private Optional<EventoEjecucionJornada> porTipo(List<EventoEjecucionJornada> historia,TipoEventoEjecucion tipo) {
         return historia.stream().filter(e -> e.tipoEvento() == tipo).findFirst();
     }

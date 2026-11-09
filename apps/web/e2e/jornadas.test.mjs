@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { baseAislada } from './entorno-aislado.mjs';
 import { chromium } from 'playwright';
+const base = baseAislada();
 
 // CU-11/CU-12, RF-07/RF-08; RF-20 parcial. Solo datos sintéticos, sin informes ni capturas.
 test('Slice 3A: programar, reasignar y reprogramar preservando historia', { timeout: 120000 }, async () => {
@@ -15,8 +16,8 @@ test('Slice 3A: programar, reasignar y reprogramar preservando historia', { time
   page.on('pageerror', e => errores.push(e.message));
   async function solicitud(ruta, datos, esperado = datos === undefined ? 200 : 201) {
     const respuesta = datos === undefined
-      ? await page.request.get(`http://127.0.0.1:5173/api${ruta}`, { headers })
-      : await page.request.post(`http://127.0.0.1:5173/api${ruta}`, { headers, data: datos });
+      ? await page.request.get(`${base}/api${ruta}`, { headers })
+      : await page.request.post(`${base}/api${ruta}`, { headers, data: datos });
     assert.equal(respuesta.status(), esperado, await respuesta.text());
     return respuesta.json();
   }
@@ -57,7 +58,7 @@ test('Slice 3A: programar, reasignar y reprogramar preservando historia', { time
       geometria: { type: 'LineString', coordinates: [[-10,20],[-11,21]] }, vigenteDesde: '2025-01-01T00:00:00Z' });
     rutas.push(ruta.ruta.id);
 
-    await page.goto('http://127.0.0.1:5173/jornadas');
+    await page.goto(`${base}/jornadas`);
     await page.getByLabel('Periodo de servicio', { exact: true }).selectOption(periodo.id);
     assert.equal(await page.getByLabel('Empresa del periodo', { exact: true }).innerText(), marca);
     await page.getByLabel('Ruta de referencia', { exact: true }).selectOption(ruta.ruta.id);
@@ -137,21 +138,6 @@ test('Slice 3A: programar, reasignar y reprogramar preservando historia', { time
     assert.deepEqual(errores, []);
   } finally {
     await browser.close();
-    for (const id of [...periodos, ...empresas, ...personas, ...vehiculos, ...rutas]) assert.match(id, /^[0-9a-f-]{36}$/);
-    const sql = [
-      ...periodos.flatMap(id => [`DELETE FROM evento_ejecucion_jornada WHERE jornada_id IN (SELECT id FROM jornada WHERE periodo_servicio_id='${id}');`, `DELETE FROM asignacion_jornada WHERE jornada_id IN (SELECT id FROM jornada WHERE periodo_servicio_id='${id}');`, `DELETE FROM jornada WHERE periodo_servicio_id='${id}';`]),
-      ...empresas.flatMap(id => [
-        `DELETE FROM vinculo_persona_funcion WHERE vinculo_persona_empresa_id IN (SELECT id FROM vinculo_persona_empresa WHERE empresa_operadora_id='${id}');`,
-        `DELETE FROM vinculo_persona_empresa WHERE empresa_operadora_id='${id}';`,
-        `DELETE FROM vinculo_vehiculo_empresa WHERE empresa_operadora_id='${id}';`,
-        `DELETE FROM periodo_servicio WHERE empresa_operadora_id='${id}';`,
-        `DELETE FROM empresa_operadora WHERE id='${id}';`,
-      ]),
-      ...personas.map(id => `DELETE FROM persona_natural WHERE id='${id}';`),
-      ...vehiculos.map(id => `DELETE FROM vehiculo WHERE id='${id}';`),
-      ...rutas.flatMap(id => [`DELETE FROM ruta_version WHERE ruta_id='${id}';`, `DELETE FROM ruta WHERE id='${id}';`]),
-    ].join('\n');
-    if (sql) execFileSync('docker', ['compose','-f','compose.dev.yml','exec','-T','db','psql','-X','-U','gamw_app_dev','-d','gamw_residuos_dev','-v','ON_ERROR_STOP=1','-c',sql],
-      { cwd: new URL('../../../backend/', import.meta.url), stdio: 'pipe' });
+    // Fixtures conservados en el clúster desechable; nunca limpiar una base existente.
   }
 });

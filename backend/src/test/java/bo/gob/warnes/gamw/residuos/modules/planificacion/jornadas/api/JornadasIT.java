@@ -1,5 +1,7 @@
 package bo.gob.warnes.gamw.residuos.modules.planificacion.jornadas.api;
 
+import bo.gob.warnes.gamw.residuos.shared.config.IntegracionPostgresV8;
+
 import bo.gob.warnes.gamw.residuos.modules.planificacion.jornadas.dominio.*;
 import java.time.*;
 import java.util.*;
@@ -26,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("desarrollo-local")
-class JornadasIT {
+class JornadasIT extends IntegracionPostgresV8 {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;

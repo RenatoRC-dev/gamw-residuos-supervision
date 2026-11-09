@@ -5,6 +5,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val integracionAislada = providers.environmentVariable("GAMW_ANDROID_INTEGRACION").orNull == "true"
+val objetivoFlutter = providers.gradleProperty("target").getOrElse("lib/main.dart").replace('\\','/')
+val pruebaGps = Regex("(^|/)integration_test/slice4a_[^/]+\\.dart$").containsMatchIn(objetivoFlutter)
+require(!pruebaGps || integracionAislada) {
+    "Slice 4A: active GAMW_ANDROID_INTEGRACION=true; se bloquea construir tests sobre la aplicacion normal."
+}
+
 android {
     namespace = "bo.gob.warnes.gamw.gamw_mobile"
     compileSdk = flutter.compileSdkVersion
@@ -21,7 +28,9 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "bo.gob.warnes.gamw.gamw_mobile"
+        // Solo el arnés opt-in: UID, SQLite y KeyStore separados de la app normal.
+        applicationId = if (integracionAislada) "bo.gob.warnes.gamw.gamw_mobile.it" else "bo.gob.warnes.gamw.gamw_mobile"
+        manifestPlaceholders["gamwAppLabel"] = if (integracionAislada) "GAMW - pruebas aisladas" else "gamw_mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion // Almacenamiento seguro Android (KeyStore / AES-GCM).

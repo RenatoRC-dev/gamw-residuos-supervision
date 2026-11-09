@@ -9,7 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
-@RestControllerAdvice(assignableTypes=EjecucionJornadasController.class)
+@RestControllerAdvice(assignableTypes={EjecucionJornadasController.class,bo.gob.warnes.gamw.residuos.modules.ejecucion.gps.api.PosicionesGpsController.class})
 @Order(-3)
 public class ManejadorErroresEjecucion {
     @ExceptionHandler(EjecucionNoAutorizada.class)
@@ -23,7 +23,7 @@ public class ManejadorErroresEjecucion {
     @ExceptionHandler(ReferenciaPlanificacionNoEncontrada.class)
     public ProblemDetail noEncontrado(ReferenciaPlanificacionNoEncontrada e) { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,e.getMessage()); }
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ProblemDetail contrato() { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,"Solo se admiten eventoClienteId, asignacionJornadaId y capturadoEn. El servidor determina identidad, recepción y tipo de evento."); }
+    public ProblemDetail contrato() { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,"Contrato de evidencia inválido. El servidor determina identidad y recepción; no se aceptan campos adicionales."); }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail validacion(MethodArgumentNotValidException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,e.getBindingResult().getFieldErrors().stream().map(x -> x.getDefaultMessage()).findFirst().orElse("Revise el evento."));

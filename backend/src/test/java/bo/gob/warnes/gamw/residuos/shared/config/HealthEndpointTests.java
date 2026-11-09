@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("smoke")
 class HealthEndpointTests {
+    @MockitoBean private org.springframework.jdbc.core.JdbcTemplate consultasSql;
     @MockitoBean
     private RepositorioRuta rutas;
     @MockitoBean
@@ -27,6 +28,8 @@ class HealthEndpointTests {
     private bo.gob.warnes.gamw.residuos.modules.planificacion.jornadas.dominio.RepositorioJornadas jornadas;
     @MockitoBean
     private bo.gob.warnes.gamw.residuos.modules.ejecucion.jornadas.dominio.RepositorioEventosEjecucion eventos;
+    @MockitoBean
+    private bo.gob.warnes.gamw.residuos.modules.ejecucion.gps.dominio.RepositorioPosicionesGps posicionesGps;
     @Autowired
     private MockMvc mvc;
 

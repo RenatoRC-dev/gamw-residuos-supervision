@@ -3,8 +3,10 @@ import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const integracion = process.env.GAMW_WEB_INTEGRACION === 'true';
+  const env = integracion ? process.env : loadEnv(mode, process.cwd(), '');
   return {
+    envDir: integracion ? false : undefined,
     plugins: [react()],
     server: {
       host: '127.0.0.1',

@@ -17,12 +17,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 /** Fronteras sustituidas exclusivamente para probar HTTP/arranque sin tocar una base de datos. */
 @Import(ContextoAutenticacionSinBd.SinInfraestructuraBd.class)
 abstract class ContextoAutenticacionSinBd {
+    @MockitoBean protected org.springframework.jdbc.core.JdbcTemplate consultasSql;
     @MockitoBean protected RepositorioUsuarios usuarios;
     @MockitoBean protected RepositorioRuta rutas;
     @MockitoBean protected RepositorioRegistroOperativo registro;
     @MockitoBean protected RepositorioVehiculos vehiculos;
     @MockitoBean protected RepositorioJornadas jornadas;
     @MockitoBean protected RepositorioEventosEjecucion eventos;
+    @MockitoBean protected bo.gob.warnes.gamw.residuos.modules.ejecucion.gps.dominio.RepositorioPosicionesGps posicionesGps;
+    @MockitoBean protected bo.gob.warnes.gamw.residuos.modules.monitoreo.seguimiento.dominio.RepositorioConsultaGps consultaGps;
 
     @TestConfiguration(proxyBeanMethods = false)
     @EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class,
