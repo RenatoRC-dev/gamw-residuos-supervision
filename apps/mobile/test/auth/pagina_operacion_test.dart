@@ -31,6 +31,25 @@ class _Almacen implements AlmacenEventosEjecucion {
 // Doble de control, sin proveedor ni coordenadas. La persistencia SQLite tiene sus tests propios.
 class _AlmacenGps extends _Almacen implements AlmacenEventosSqlite {
   Map<String,Object?>? contexto;
+  @override
+  Future<void> registrarFinConfirmado(EventoEjecucionLocal e, DateTime inicioServidor) async {
+    if (e.tipoEvento != TipoEventoEjecucion.fin || e.usuarioIdCaptura == null) {
+      throw ArgumentError('Solo FIN con identidad de captura y contexto de inicio confirmado.');
+    }
+    if (eventos.any((anterior) => anterior.eventoClienteId == e.eventoClienteId ||
+        (anterior.jornadaId == e.jornadaId && anterior.tipoEvento == e.tipoEvento))) {
+      throw StateError('Ya existe el evento local; reintente sincronizarlo sin generar otro ID.');
+    }
+    final inicioLocal = eventos.where((anterior) => anterior.jornadaId == e.jornadaId &&
+      anterior.tipoEvento == TipoEventoEjecucion.inicio).firstOrNull;
+    if (e.capturadoEn.isBefore(inicioLocal?.capturadoEn ?? inicioServidor.toUtc())) {
+      throw StateError('FIN no puede tener una captura anterior a INICIO.');
+    }
+    await registrar(EventoEjecucionLocal(eventoClienteId: e.eventoClienteId, jornadaId: e.jornadaId,
+      asignacionJornadaId: e.asignacionJornadaId, tipoEvento: e.tipoEvento,
+      capturadoEn: e.capturadoEn, usuarioIdCaptura: e.usuarioIdCaptura));
+    if (contexto?['jornada_id'] == e.jornadaId) contexto = null;
+  }
   @override String get ruta => '/db/control-gps.db';
   @override Future<Map<String,Object?>?> contextoGpsActivo() async => contexto;
   @override Future<List<PosicionGpsLocal>> listarPosiciones(String usuario) async => [];

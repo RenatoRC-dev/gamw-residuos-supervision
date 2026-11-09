@@ -21,7 +21,23 @@ const PaginaRevisionGps = lazy(() => import('../modules/monitoreo/revision/pagin
 const PaginaFiscalizacion = lazy(() => import('../modules/fiscalizacion/paginas/PaginaFiscalizacion')
   .then(module => ({ default: module.PaginaFiscalizacion })));
 
+const PaginaCorrectivas = lazy(() => import('../modules/correctivas/paginas/PaginaCorrectivas')
+  .then(module => ({ default: module.PaginaCorrectivas })));
+const PaginaCorrectivasEmpresa = lazy(() => import('../modules/correctivas/paginas/PaginaCorrectivasEmpresa')
+  .then(module => ({ default: module.PaginaCorrectivasEmpresa })));
+const PaginaReprogramacionEmpresa = lazy(() => import('../modules/planificacion/jornadas/paginas/PaginaReprogramacionEmpresa')
+  .then(module => ({ default: module.PaginaReprogramacionEmpresa })));
+const PaginaAdministracionUsuarios = lazy(() => import('../modules/administracion/identidad/paginas/PaginaAdministracionUsuarios')
+  .then(module => ({ default: module.PaginaAdministracionUsuarios })));
+const PaginaReclamosPuntos = lazy(() => import('../modules/reclamos/paginas/PaginaReclamosPuntos')
+  .then(module => ({ default: module.PaginaReclamosPuntos })));
+
 export const appRoutes = [{ element: <ProveedorAutenticacion><Outlet /></ProveedorAutenticacion>, children: [
+  { path: '/reclamos', element: <Suspense fallback={<p role="status">Cargando reclamos y puntos…</p>}><PaginaReclamosPuntos /></Suspense> },
+  { path: '/administracion/usuarios', element: <Suspense fallback={<p role="status">Cargando administración…</p>}><PaginaAdministracionUsuarios /></Suspense> },
+  { path: '/empresa/jornadas', element: <Suspense fallback={<p role="status">Cargando reprogramación…</p>}><PaginaReprogramacionEmpresa /></Suspense> },
+  { path: '/empresa/correctivas', element: <Suspense fallback={<p role="status">Cargando atención empresarial…</p>}><PaginaCorrectivasEmpresa /></Suspense> },
+  { path: '/correctivas', element: <Suspense fallback={<p role="status">Cargando actuaciones…</p>}><PaginaCorrectivas /></Suspense> },
   { path: '/', element: <TechnicalHome /> },
   { path: '/acceso', element: <Suspense fallback={<p role="status">Cargando acceso…</p>}><PaginaAcceso /></Suspense> },
   { path: '/trayectorias', element: <Suspense fallback={<p role="status">Cargando trayectorias…</p>}><PaginaTrayectorias /></Suspense> },

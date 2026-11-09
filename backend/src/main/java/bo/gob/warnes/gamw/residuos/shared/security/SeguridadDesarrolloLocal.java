@@ -40,8 +40,10 @@ public class SeguridadDesarrolloLocal {
                     boolean local = "127.0.0.1".equals(request.getRemoteAddr()) || "0:0:0:0:0:0:0:1".equals(request.getRemoteAddr())
                             || "::1".equals(request.getRemoteAddr());
                     String requestOrigin = request.getHeader("Origin");
-                    return new AuthorizationDecision(local && "gamw-desarrollo".equals(request.getHeader("X-GAMW-Development"))
-                            && (requestOrigin == null || webOrigin.equals(requestOrigin)));
+                    boolean permitido=local && "gamw-desarrollo".equals(request.getHeader("X-GAMW-Development"))
+                            && (requestOrigin == null || webOrigin.equals(requestOrigin));
+                    if(permitido) request.setAttribute("gamw.acceso-local-validado",Boolean.TRUE);
+                    return new AuthorizationDecision(permitido);
                 }))
                 // Custom header + origin check above prevent cross-site form submission in this local-only profile.
                 .csrf(csrf -> csrf.ignoringRequestMatchers(endpoints))

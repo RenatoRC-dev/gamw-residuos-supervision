@@ -38,7 +38,7 @@ function Seleccion({ token, inicial, vencer }: { token: string; inicial: string;
     {id && <Expediente key={`${token}:${id}`} token={token} jornada={id} vencer={vencer} />}
   </>;
 }
-function Contexto({ datos }: { datos: ContextoFiscal }) {
+export function Contexto({ datos }: { datos: ContextoFiscal }) {
   return <section aria-label="Contexto operacional e histórico">
     <h2>{datos.empresa.razonSocial} · {datos.ruta.codigo} · versión {datos.rutaVersion.numeroVersion}</h2>
     <p>Jornada {datos.jornada.id} · Periodo {datos.periodo.id}: {datos.periodo.fechaInicio} — {datos.periodo.fechaFin}</p>
@@ -88,6 +88,7 @@ function Expediente({ token, jornada, vencer }: { token: string; jornada: string
     {cargando && <p role="status">Consultando expediente…</p>}{error && <p role="alert">{error}</p>}{aviso && <p role="status">{aviso}</p>}
     {datos && <>
       <Contexto datos={datos.contexto} /><p>{datos.limitaciones}</p>
+      <p><Link to={`/correctivas?jornada=${jornada}`}>Incidencias y actuaciones correctivas (permiso independiente)</Link></p>
       <h2>GPS recibido: evidencia técnica, no dictamen</h2>
       <p>La cantidad recibida no informa cuántos registros siguen pendientes en teléfonos. No se inventan muestras ni cumplimiento.</p>
       {avisoMapa && <p role="status">{avisoMapa}</p>}

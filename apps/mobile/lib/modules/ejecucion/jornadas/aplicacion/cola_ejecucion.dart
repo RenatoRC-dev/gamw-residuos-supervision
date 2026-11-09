@@ -23,6 +23,7 @@ class ColaEjecucion {
     DateTime Function()? ahora,
     String Function()? generarId,
     this.sincronizarGps,
+    this.confirmarInicioServidor,
   }) : _ahora = ahora ?? DateTime.now,
        _generarId = generarId ?? generarUuidEvento;
   final AlmacenEventosEjecucion almacen;
@@ -30,6 +31,7 @@ class ColaEjecucion {
   final DateTime Function() _ahora;
   final String Function() _generarId;
   final Future<bool> Function(String jornada)? sincronizarGps;
+  final Future<bool> Function(EventoEjecucionLocal fin)? confirmarInicioServidor;
   Future<void> _turno = Future<void>.value();
   Future<void> _turnoEnvio = Future<void>.value();
 
@@ -44,7 +46,7 @@ class ColaEjecucion {
     String jornadaId,
     String asignacionId,
     TipoEventoEjecucion tipo,
-    {String? usuarioIdCaptura}
+    {String? usuarioIdCaptura, DateTime? inicioServidor}
   ) {
     final id = _generarId();
     final captura = _ahora().toUtc();
@@ -57,7 +59,11 @@ class ColaEjecucion {
       usuarioIdCaptura: usuarioIdCaptura,
     );
     return _serial(() async {
-      await almacen.registrar(evento);
+      if (tipo == TipoEventoEjecucion.fin && inicioServidor != null && almacen is AlmacenFinConfirmado) {
+        await (almacen as AlmacenFinConfirmado).registrarFinConfirmado(evento, inicioServidor);
+      } else {
+        await almacen.registrar(evento);
+      }
       return evento;
     });
   }
@@ -90,6 +96,10 @@ class ColaEjecucion {
       (e) => e.estadoSincronizacion == EstadoSincronizacion.pendiente,
     )) {
       if (bloqueadas.contains(evento.jornadaId)) continue;
+      if (evento.tipoEvento == TipoEventoEjecucion.fin && !iniciosAceptados.contains(evento.jornadaId) && confirmarInicioServidor != null) {
+        if (!await confirmarInicioServidor!(evento)) continue;
+        iniciosAceptados.add(evento.jornadaId);
+      }
       if(evento.tipoEvento==TipoEventoEjecucion.fin && sincronizarGps!=null) {
         if(!iniciosAceptados.contains(evento.jornadaId)) continue;
         gpsIntentado.add(evento.jornadaId);

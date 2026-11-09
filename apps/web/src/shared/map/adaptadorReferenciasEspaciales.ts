@@ -18,7 +18,7 @@ export function crearMapaReferencias(nodo: HTMLElement, cambio: (g: Geometry | n
     mapa.addSource('controles', { type: 'geojson', data: referencias });
     mapa.addLayer({ id: 'areas', type: 'fill', source: 'controles', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#7c3aed', 'fill-opacity': 0.15 } });
     mapa.addLayer({ id: 'bordes', type: 'line', source: 'controles', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'line-color': '#7c3aed' } });
-    mapa.addLayer({ id: 'puntos', type: 'circle', source: 'controles', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': '#7c3aed', 'circle-radius': 7 } });
+    mapa.addLayer({ id: 'puntos', type: 'circle', source: 'controles', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': ['case', ['has', 'validado'], ['case', ['boolean', ['get', 'validado'], false], '#047857', '#b45309'], '#7c3aed'], 'circle-radius': 7 } });
     dibujo = new TerraDraw({ adapter: new TerraDrawMapLibreGLAdapter({ map: mapa, coordinatePrecision: 12 }), modes: [
       new TerraDrawPointMode(), new TerraDrawPolygonMode(), new TerraDrawSelectMode({ flags: {
         point: { feature: { draggable: true } }, polygon: { feature: { draggable: true, coordinates: { draggable: true, deletable: true, midpoints: true } } },

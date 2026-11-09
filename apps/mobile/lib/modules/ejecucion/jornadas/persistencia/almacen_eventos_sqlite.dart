@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../dominio/evento_ejecucion_local.dart';
 import '../../gps/dominio/posicion_gps_local.dart';
 
-class AlmacenEventosSqlite implements AlmacenEventosEjecucion, AlmacenPosicionesGps {
+class AlmacenEventosSqlite implements AlmacenEventosEjecucion, AlmacenPosicionesGps, AlmacenFinConfirmado {
   AlmacenEventosSqlite._(this._db);
   final Database _db;
   String get ruta => _db.path;
@@ -55,7 +55,17 @@ class AlmacenEventosSqlite implements AlmacenEventosEjecucion, AlmacenPosiciones
   }
 
   @override
-  Future<void> registrar(EventoEjecucionLocal e) => _db.transaction((
+  Future<void> registrar(EventoEjecucionLocal e) => _registrar(e);
+
+  @override
+  Future<void> registrarFinConfirmado(EventoEjecucionLocal e, DateTime inicioServidor) {
+    if (e.tipoEvento != TipoEventoEjecucion.fin || e.usuarioIdCaptura == null) {
+      throw ArgumentError('Solo FIN con identidad de captura y contexto de inicio confirmado.');
+    }
+    return _registrar(e, inicioServidor: inicioServidor.toUtc());
+  }
+
+  Future<void> _registrar(EventoEjecucionLocal e, {DateTime? inicioServidor}) => _db.transaction((
     txn,
   ) async {
     final anteriores = await txn.query(
@@ -72,11 +82,11 @@ class AlmacenEventosSqlite implements AlmacenEventosEjecucion, AlmacenPosiciones
       final inicio = anteriores
           .where((fila) => fila['tipo_evento'] == 'INICIO')
           .firstOrNull;
-      if (inicio == null) {
+      if (inicio == null && inicioServidor == null) {
         throw StateError('Registre primero INICIO en este dispositivo.');
       }
       if (e.capturadoEn.isBefore(
-        DateTime.parse(inicio['capturado_en'] as String),
+        inicio != null ? DateTime.parse(inicio['capturado_en'] as String) : inicioServidor!,
       )) {
         throw StateError('FIN no puede tener una captura anterior a INICIO.');
       }

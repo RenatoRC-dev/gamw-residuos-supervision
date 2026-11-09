@@ -8,7 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
-@RestControllerAdvice(assignableTypes={JornadasController.class,PeriodosPlanificacionController.class})
+@RestControllerAdvice(assignableTypes={JornadasController.class,PeriodosPlanificacionController.class,JornadasOperadorController.class})
 @Order(-2)
 public class ManejadorErroresJornadas {
     @ExceptionHandler(IllegalArgumentException.class)

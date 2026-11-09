@@ -9,7 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
-@RestControllerAdvice(assignableTypes={EjecucionJornadasController.class,bo.gob.warnes.gamw.residuos.modules.ejecucion.gps.api.PosicionesGpsController.class})
+@RestControllerAdvice(assignableTypes={EjecucionJornadasController.class,EjecucionPropiaController.class,bo.gob.warnes.gamw.residuos.modules.ejecucion.gps.api.PosicionesGpsController.class})
 @Order(-3)
 public class ManejadorErroresEjecucion {
     @ExceptionHandler(EjecucionNoAutorizada.class)

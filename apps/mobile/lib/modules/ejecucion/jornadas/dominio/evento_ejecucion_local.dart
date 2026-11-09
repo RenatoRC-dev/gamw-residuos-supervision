@@ -60,3 +60,9 @@ abstract interface class AlmacenEventosEjecucion {
     EstadoSincronizacion estado,
   );
 }
+
+/// FIN puede apoyarse en un INICIO original consultado al servidor, sin copiarlo
+/// como evidencia local ni cambiar su autor (CU-13 FA-04).
+abstract interface class AlmacenFinConfirmado {
+  Future<void> registrarFinConfirmado(EventoEjecucionLocal evento, DateTime inicioServidor);
+}

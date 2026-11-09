@@ -32,6 +32,15 @@ public class AutorizacionMunicipal {
             default -> throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"Revisión no admitida.");
         });
     }
+    public void exigirConsultaCorrectiva(UsuarioAutenticado actor) { exigir(actor,"CORRECTIVA_CONSULTAR"); }
+    public void exigirConsultaReclamo(UsuarioAutenticado actor) { exigir(actor,"RECLAMO_CONSULTAR"); }
+    public void exigirRegistroReclamo(UsuarioAutenticado actor) { exigir(actor,"RECLAMO_REGISTRAR"); }
+    public void exigirRevisionReclamo(UsuarioAutenticado actor) { exigir(actor,"RECLAMO_REVISAR"); }
+    public void exigirConsultaPunto(UsuarioAutenticado actor) { exigir(actor,"PUNTO_CRITICO_CONSULTAR"); }
+    public void exigirRegistroPunto(UsuarioAutenticado actor) { exigir(actor,"PUNTO_CRITICO_REGISTRAR"); }
+    public void exigirValidacionPunto(UsuarioAutenticado actor) { exigir(actor,"PUNTO_CRITICO_VALIDAR"); }
+    public void exigirSolicitudCorrectiva(UsuarioAutenticado actor) { exigir(actor,"CORRECTIVA_SOLICITAR"); }
+    public void exigirVerificacionCorrectiva(UsuarioAutenticado actor) { exigir(actor,"CORRECTIVA_VERIFICAR"); }
     private void exigir(UsuarioAutenticado actor,String permiso) {
         if (actor == null) throw new InsufficientAuthenticationException("Identidad autenticada obligatoria.");
         boolean permitido = Boolean.TRUE.equals(jdbc.queryForObject("""

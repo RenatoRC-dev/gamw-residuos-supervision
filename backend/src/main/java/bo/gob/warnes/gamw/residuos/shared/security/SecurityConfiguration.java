@@ -32,6 +32,31 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/autenticacion/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/autenticacion/actual").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/mis-jornadas").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/personas", "/api/personas/*", "/api/vehiculos", "/api/vehiculos/*", "/api/empresas-operadoras", "/api/empresas-operadoras/*",
+                            "/api/empresas-operadoras/*/periodos", "/api/empresas-operadoras/*/personal", "/api/empresas-operadoras/*/vehiculos",
+                            "/api/rutas", "/api/rutas/*", "/api/rutas/*/versiones", "/api/rutas/*/versiones/*", "/api/jornadas", "/api/jornadas/*", "/api/jornadas/*/asignaciones", "/api/periodos-servicio").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/personas", "/api/vehiculos", "/api/vehiculos/marcas", "/api/vehiculos/modelos", "/api/vehiculos/tipos", "/api/empresas-operadoras",
+                            "/api/empresas-operadoras/*/periodos", "/api/empresas-operadoras/*/personal", "/api/empresas-operadoras/*/vehiculos", "/api/rutas", "/api/rutas/*/versiones",
+                            "/api/jornadas", "/api/jornadas/*/asignaciones", "/api/jornadas/*/reasignaciones", "/api/jornadas/*/reprogramaciones").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/personas/*", "/api/vehiculos/*", "/api/empresas-operadoras/*", "/api/empresas-operadoras/*/periodos/*", "/api/empresas-operadoras/*/personal/*", "/api/empresas-operadoras/*/vehiculos/*").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/personas/*/estado", "/api/vehiculos/*/estado", "/api/empresas-operadoras/*/estado", "/api/empresas-operadoras/*/periodos/*/estado").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/empresa/periodos-servicio", "/api/empresa/periodos/*/referencias", "/api/empresa/jornadas/*/recursos").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/empresa/periodos/*/jornadas", "/api/empresa/jornadas/*/asignaciones", "/api/empresa/jornadas/*/reasignaciones").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/reclamos-institucionales", "/api/reclamos-institucionales/opciones", "/api/reclamos-institucionales/*",
+                            "/api/reclamos-institucionales/*/anexos/*", "/api/puntos-criticos", "/api/puntos-criticos/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/reclamos-institucionales", "/api/reclamos-institucionales/*/revisiones", "/api/reclamos-institucionales/*/relaciones",
+                            "/api/reclamos-institucionales/*/anexos", "/api/puntos-criticos", "/api/puntos-criticos/*/observaciones", "/api/puntos-criticos/*/validacion").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/administracion/identidad/usuarios", "/api/administracion/identidad/usuarios/*",
+                            "/api/administracion/identidad/personas", "/api/administracion/identidad/opciones", "/api/administracion/identidad/usuarios/*/permisos", "/api/administracion/identidad/usuarios/*/actuaciones").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/administracion/identidad/usuarios", "/api/administracion/identidad/usuarios/*/permisos", "/api/administracion/identidad/usuarios/*/permisos/*/revocacion").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/administracion/identidad/usuarios/*").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/administracion/identidad/usuarios/*/estado").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/empresa/jornadas", "/api/empresa/jornadas/*", "/api/mis-jornadas/*/ejecucion").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/empresa/jornadas/*/reprogramaciones").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/empresa/correctivas", "/api/empresa/correctivas/*", "/api/empresa/correctivas/*/evidencias/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/empresa/correctivas/*/respuestas").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/jornadas/*/incidencias-propias", "/api/correctivas/jornadas", "/api/correctivas/jornadas/*").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/jornadas/*/incidencias", "/api/correctivas/jornadas/*/acciones", "/api/correctivas/acciones/*/verificaciones").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/monitoreo/jornadas").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/fiscalizacion/jornadas", "/api/fiscalizacion/jornadas/*",
                             "/api/fiscalizacion/jornadas/*/gps", "/api/fiscalizacion/jornadas/*/evidencias/*").authenticated()
@@ -46,7 +71,12 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/jornadas/*/ejecucion/posiciones-gps").authenticated()
                         .anyRequest().denyAll())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/autenticacion/login"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/autenticacion/login")
+                    // Esta cadena no usa cookies/sesiones, HTTP Basic ni formularios como autenticación.
+                    // La presencia del header solo excluye CSRF: el resource server valida siempre el JWT.
+                    .ignoringRequestMatchers(request -> request.getRequestURI().startsWith(request.getContextPath()+"/api/")
+                        && request.getHeader("Authorization") != null
+                        && request.getHeader("Authorization").matches("(?i)^Bearer [^\\s]+$")))
                 .requestCache(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)

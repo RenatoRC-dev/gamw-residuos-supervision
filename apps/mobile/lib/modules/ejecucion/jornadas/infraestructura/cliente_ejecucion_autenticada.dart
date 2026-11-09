@@ -6,6 +6,24 @@ import '../dominio/evento_ejecucion_local.dart';
 class ClienteEjecucionAutenticada implements ClienteEventosEjecucion {
   ClienteEjecucionAutenticada(this.sesiones);
   final GestorSesion sesiones;
+  Future<bool> confirmarInicio(EventoEjecucionLocal fin) async {
+    String? tokenPeticion;
+    try {
+      final sesion = await sesiones.vigente();
+      tokenPeticion = sesion.token;
+      if (sesion.usuarioId != fin.usuarioIdCaptura) return false;
+      final datos = await sesiones.api.solicitar('GET',
+        'mis-jornadas/${fin.jornadaId}/ejecucion?asignacionId=${Uri.encodeQueryComponent(fin.asignacionJornadaId)}',
+        token: sesion.token) as Map<String, dynamic>;
+      if (sesiones.actual?.token != sesion.token || datos['jornadaId'] != fin.jornadaId) return false;
+      final inicio = datos['inicio'];
+      return inicio is Map<String, dynamic> &&
+        !fin.capturadoEn.isBefore(DateTime.parse(inicio['capturadoEn'] as String).toUtc());
+    } on ErrorBackend catch (e) {
+      if (e.estado == 401 && tokenPeticion != null) await sesiones.invalidar(tokenPeticion);
+      return false;
+    } on Exception { return false; }
+  }
   @override
   Future<ResultadoEnvio> enviar(EventoEjecucionLocal evento) async {
     final sesion = await sesiones.vigente();
