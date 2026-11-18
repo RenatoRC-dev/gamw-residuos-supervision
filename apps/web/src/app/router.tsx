@@ -35,7 +35,11 @@ const PaginaReclamosPuntos = lazy(() => import('../modules/reclamos/paginas/Pagi
 const PaginaHistorialServicio = lazy(() => import('../modules/historial/paginas/PaginaHistorialServicio')
   .then(module => ({ default: module.PaginaHistorialServicio })));
 
+const PaginaBitacora = lazy(() => import('../modules/bitacora/paginas/PaginaBitacora')
+  .then(module => ({ default: module.PaginaBitacora })));
+
 export const appRoutes = [{ element: <ProveedorAutenticacion><Outlet /></ProveedorAutenticacion>, children: [
+  { path: '/bitacora', element: <Suspense fallback={<p role="status">Cargando bitácora…</p>}><PaginaBitacora /></Suspense> },
   { path: '/historial-servicio', element: <Suspense fallback={<p role="status">Cargando historial…</p>}><PaginaHistorialServicio /></Suspense> },
   { path: '/reclamos', element: <Suspense fallback={<p role="status">Cargando reclamos y puntos…</p>}><PaginaReclamosPuntos /></Suspense> },
   { path: '/administracion/usuarios', element: <Suspense fallback={<p role="status">Cargando administración…</p>}><PaginaAdministracionUsuarios /></Suspense> },

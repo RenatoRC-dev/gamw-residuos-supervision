@@ -26,9 +26,16 @@ public class RepositorioHistorialServicio {
     private final JdbcTemplate jdbc;
     public RepositorioHistorialServicio(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
-    public List<ResumenJornada> buscar(UUID periodo,UUID empresa,UUID ruta,LocalDate desde,LocalDate hasta,int limite,int desplazamiento) {
+    private static final Set<String> TABLAS_EVIDENCIA = Set.of("posicion_gps","inspeccion","fiscalizacion","incidencia_operativa","accion_correctiva","reclamo_institucional");
+    /** Solo cuenta registros que referencian la jornada; la tabla procede de una lista cerrada. */
+    public int contarReferencias(String tabla,UUID jornada) {
+        if (!TABLAS_EVIDENCIA.contains(tabla)) throw new IllegalArgumentException("Tabla no admitida.");
+        return jdbc.queryForObject("SELECT count(*) FROM " + tabla + " WHERE jornada_id=?",Integer.class,jornada);
+    }
+    public List<ResumenJornada> buscar(UUID jornada,UUID periodo,UUID empresa,UUID ruta,LocalDate desde,LocalDate hasta,int limite,int desplazamiento) {
         var sql = new StringBuilder(BASE).append(" WHERE true");
         var args = new ArrayList<Object>();
+        if (jornada != null) { sql.append(" AND j.id=?"); args.add(jornada); }
         if (periodo != null) { sql.append(" AND ps.id=?"); args.add(periodo); }
         if (empresa != null) { sql.append(" AND e.id=?"); args.add(empresa); }
         if (ruta != null) { sql.append(" AND r.id=?"); args.add(ruta); }

@@ -19,11 +19,11 @@ public class HistorialServicioController {
 
     @GetMapping
     public ResponseEntity<?> buscar(@AuthenticationPrincipal UsuarioAutenticado actor,
-            @RequestParam(required = false) UUID periodoId,@RequestParam(required = false) UUID empresaId,@RequestParam(required = false) UUID rutaId,
+            @RequestParam(required = false) UUID jornadaId,@RequestParam(required = false) UUID periodoId,@RequestParam(required = false) UUID empresaId,@RequestParam(required = false) UUID rutaId,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(defaultValue = "0") int desplazamiento) {
-        return privada(historial.buscar(actor,periodoId,empresaId,rutaId,desde,hasta,desplazamiento));
+        return privada(historial.buscar(actor,jornadaId,periodoId,empresaId,rutaId,desde,hasta,desplazamiento));
     }
     @GetMapping("/{jornadaId}")
     public ResponseEntity<?> detalle(@AuthenticationPrincipal UsuarioAutenticado actor,@PathVariable UUID jornadaId) {

@@ -43,6 +43,14 @@ public class AutorizacionMunicipal {
     public void exigirValidacionPunto(UsuarioAutenticado actor) { exigir(actor,"PUNTO_CRITICO_VALIDAR"); }
     public void exigirSolicitudCorrectiva(UsuarioAutenticado actor) { exigir(actor,"CORRECTIVA_SOLICITAR"); }
     public void exigirVerificacionCorrectiva(UsuarioAutenticado actor) { exigir(actor,"CORRECTIVA_VERIFICAR"); }
+    /** Consulta no lanzadora para distinguir «sin acceso» de «sin registros» en vistas de solo lectura. */
+    public boolean tiene(UsuarioAutenticado actor,String permiso) {
+        if (actor == null) return false;
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT EXISTS (SELECT 1 FROM concesion_permiso c JOIN usuario u ON u.id=c.usuario_id
+                  WHERE c.usuario_id=? AND u.activo AND c.permiso=? AND c.alcance='MUNICIPAL_GAMW' AND c.revocado_en IS NULL)
+                """, Boolean.class, actor.usuarioId(),permiso));
+    }
     private void exigir(UsuarioAutenticado actor,String permiso) {
         if (actor == null) throw new InsufficientAuthenticationException("Identidad autenticada obligatoria.");
         boolean permitido = Boolean.TRUE.equals(jdbc.queryForObject("""

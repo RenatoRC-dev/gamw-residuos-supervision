@@ -4,7 +4,10 @@ import { useSesionActual } from '../../administracion/identidad/aplicacion/conte
 import { apiHistorialServicio, validarFiltros, type DetalleHistorico, type FiltrosHistorial, type ResumenJornadaHistorica } from '../api/historialServicio';
 
 const formato = (v: string | null) => (v ? new Date(v).toLocaleString('es-BO', { timeZone: 'America/La_Paz' }) : '—');
-const VACIO: FiltrosHistorial = { periodoId: '', empresaId: '', desde: '', hasta: '' };
+const VACIO: FiltrosHistorial = { jornadaId: '', periodoId: '', empresaId: '', rutaId: '', desde: '', hasta: '' };
+const ETIQUETA: Record<string, string> = {
+  CON_REGISTROS: 'Con registros', SIN_REGISTROS: 'Sin registros', ACCESO_NO_PERMITIDO: 'Acceso no permitido (se desconoce si existen)', NO_CONSULTADO: 'No consultado',
+};
 
 export function PaginaHistorialServicio() {
   const { sesion } = useSesionActual();
@@ -49,9 +52,11 @@ function Historial({ jornadaId, elegir }: { jornadaId: string; elegir: (id: stri
       <label>Hasta <input type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} /></label>{' '}
       <label>Periodo (ID) <input value={filtros.periodoId} onChange={e => setFiltros({ ...filtros, periodoId: e.target.value })} /></label>{' '}
       <label>Empresa (ID) <input value={filtros.empresaId} onChange={e => setFiltros({ ...filtros, empresaId: e.target.value })} /></label>{' '}
+      <label>Ruta (ID) <input value={filtros.rutaId} onChange={e => setFiltros({ ...filtros, rutaId: e.target.value })} /></label>{' '}
+      <label>Jornada (ID) <input value={filtros.jornadaId} onChange={e => setFiltros({ ...filtros, jornadaId: e.target.value })} /></label>{' '}
       <button type="submit" disabled={cargando}>Buscar</button>{' '}
       <button type="button" onClick={() => { setFiltros(VACIO); setAplicados(null); setLista(null); setError(''); }}>Limpiar</button>
-      <p>Las fechas se interpretan como fecha de servicio en America/La_Paz. Para filtrar por empresa o periodo use «Filtrar» en un resultado.</p>
+      <p>Las fechas se interpretan como fecha de servicio en America/La_Paz. Para filtrar por empresa, periodo o ruta use «Filtrar» en un resultado. Los nombres de empresa, vehículo y persona son los registrados hoy en el maestro; la identidad (ID), el periodo, la versión de ruta y las asignaciones son las históricas de la jornada.</p>
     </form>
     {error && <p role="alert">{error}</p>}
     {cargando && <p role="status">Consultando historial…</p>}
@@ -63,7 +68,7 @@ function Historial({ jornadaId, elegir }: { jornadaId: string; elegir: (id: stri
           <td>{formato(j.inicioProgramado)}</td>
           <td>{j.empresa.razonSocial} <button type="button" onClick={() => { const f = { ...filtros, empresaId: j.empresa.id }; setFiltros(f); setDesplazamiento(0); setAplicados(f); }}>Filtrar</button></td>
           <td>{j.periodo.fechaInicio} → {j.periodo.fechaFin} <button type="button" onClick={() => { const f = { ...filtros, periodoId: j.periodo.id }; setFiltros(f); setDesplazamiento(0); setAplicados(f); }}>Filtrar</button></td>
-          <td>{j.ruta.nombre} · v{j.ruta.numeroVersion}</td>
+          <td>{j.ruta.nombre} · v{j.ruta.numeroVersion} <button type="button" onClick={() => { const f = { ...filtros, rutaId: j.ruta.rutaId }; setFiltros(f); setDesplazamiento(0); setAplicados(f); }}>Filtrar</button></td>
           <td>{j.vigente ? 'Vigente' : 'Reprogramada (sustituida)'}{j.antecedenteId ? ' · tiene antecedente' : ''}</td>
           <td>{j.cantidadAsignaciones}</td>
           <td><button type="button" onClick={() => elegir(j.id)}>Ver detalle</button></td></tr>)}</tbody></table>
@@ -112,8 +117,8 @@ function DetalleJornadaHistorica({ id, volver, elegir }: { id: string; volver: (
         : <table><thead><tr><th>Desde</th><th>Hasta</th><th>Vehículo</th><th>Responsable</th><th>Motivo</th></tr></thead>
           <tbody>{datos.asignaciones.map(a => <tr key={a.id}><td>{formato(a.vigenteDesde)}</td><td>{a.vigenteHasta ? formato(a.vigenteHasta) : 'Abierta'}</td><td>{a.placa}</td><td>{a.responsable}</td><td>{a.motivoCambio ?? '—'}</td></tr>)}</tbody></table>}
       <h3>Evidencias (vistas existentes)</h3>
-      <p>Esta página no confirma si existen registros: cada vista aplica su propio permiso y distingue «sin registros» de «sin acceso».</p>
-      <ul>{datos.enlaces.map(l => <li key={l.ruta}><Link to={l.ruta}>{l.modulo}</Link> — {l.nota}</li>)}</ul>
+      <p>El recuento solo se muestra cuando su cuenta tiene el permiso propio de cada módulo. «Acceso no permitido» no significa que no existan registros. El GPS y las inspecciones son evidencia; no concluyen cumplimiento.</p>
+      <ul>{datos.enlaces.map(l => <li key={l.modulo}><Link to={l.ruta}>{l.modulo}</Link> — <strong>{ETIQUETA[l.estado] ?? l.estado}{l.cantidad !== null ? ` (${l.cantidad})` : ''}</strong>. {l.nota}</li>)}</ul>
     </>}
   </section>;
 }

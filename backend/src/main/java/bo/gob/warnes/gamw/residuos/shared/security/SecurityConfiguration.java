@@ -59,6 +59,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/jornadas/*/incidencias", "/api/correctivas/jornadas/*/acciones", "/api/correctivas/acciones/*/verificaciones").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/monitoreo/jornadas").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/historial-servicio/jornadas", "/api/historial-servicio/jornadas/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/bitacora/eventos", "/api/bitacora/eventos/*").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/fiscalizacion/jornadas", "/api/fiscalizacion/jornadas/*",
                             "/api/fiscalizacion/jornadas/*/gps", "/api/fiscalizacion/jornadas/*/evidencias/*").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/fiscalizacion/jornadas/*/inspecciones", "/api/fiscalizacion/jornadas/*/resultado").authenticated()

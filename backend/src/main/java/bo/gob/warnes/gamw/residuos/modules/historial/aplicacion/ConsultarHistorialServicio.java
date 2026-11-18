@@ -32,15 +32,16 @@ public class ConsultarHistorialServicio {
             Periodo periodo,Empresa empresa,RutaVersionHistorica ruta,int cantidadAsignaciones) { }
     public record AsignacionHistorica(UUID id,Instant vigenteDesde,Instant vigenteHasta,String motivoCambio,UUID vinculoVehiculoEmpresaId,UUID vinculoPersonaEmpresaId,
             String placa,String responsable,UUID empresaVehiculoId,UUID empresaPersonaId) { }
-    public record Enlace(String modulo,String ruta,String nota) { }
+    /** estado: CON_REGISTROS | SIN_REGISTROS | ACCESO_NO_PERMITIDO | NO_CONSULTADO. cantidad solo existe si el actor tiene el permiso propio del módulo. */
+    public record Enlace(String modulo,String ruta,String estado,Integer cantidad,String nota) { }
     public record Pagina(List<ResumenJornada> jornadas,Integer siguiente) { }
     public record Detalle(ResumenJornada jornada,List<ResumenJornada> cadena,List<AsignacionHistorica> asignaciones,List<String> inconsistencias,List<Enlace> enlaces) { }
 
-    public Pagina buscar(UsuarioAutenticado actor,UUID periodo,UUID empresa,UUID ruta,LocalDate desde,LocalDate hasta,int desplazamiento) {
+    public Pagina buscar(UsuarioAutenticado actor,UUID jornada,UUID periodo,UUID empresa,UUID ruta,LocalDate desde,LocalDate hasta,int desplazamiento) {
         permisos.exigirConsultaHistorialServicio(actor);
         if (desde != null && hasta != null && desde.isAfter(hasta)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"El rango de fechas es contradictorio: 'desde' no puede ser posterior a 'hasta'.");
         if (desplazamiento < 0 || desplazamiento > 10_000_000) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Desplazamiento inválido.");
-        var filas = repositorio.buscar(periodo,empresa,ruta,desde,hasta,PAGINA + 1,desplazamiento);
+        var filas = repositorio.buscar(jornada,periodo,empresa,ruta,desde,hasta,PAGINA + 1,desplazamiento);
         return new Pagina(filas.stream().limit(PAGINA).toList(),filas.size() > PAGINA ? desplazamiento + PAGINA : null);
     }
 
@@ -57,12 +58,25 @@ public class ConsultarHistorialServicio {
         if (jornada.antecedenteId() != null && cadena.stream().noneMatch(c -> c.id().equals(jornada.antecedenteId())))
             avisos.add("El antecedente declarado no pudo recuperarse; la cadena está incompleta.");
         if (asignaciones.isEmpty()) avisos.add("La jornada no registra asignaciones de recursos.");
-        String nota = "Requiere su propio permiso municipal; esta consulta no confirma si existen registros.";
-        var enlaces = List.of(
-            new Enlace("Trayectoria GPS","/trayectorias?jornada=" + id,nota),
-            new Enlace("Revisión de evidencia GPS","/revision-gps?jornada=" + id,nota),
-            new Enlace("Inspección y fiscalización","/fiscalizacion?jornada=" + id,nota),
-            new Enlace("Incidencias y acciones correctivas","/correctivas?jornada=" + id,nota));
+        var enlaces = new ArrayList<Enlace>();
+        enlaces.add(evidencia(actor,"Trayectoria GPS (posiciones registradas)","TRAYECTORIA_JORNADA_CONSULTAR","/trayectorias?jornada=" + id,id,"posicion_gps"));
+        enlaces.add(new Enlace("Revisión técnica de evidencia GPS","/revision-gps?jornada=" + id,"NO_CONSULTADO",null,
+            "Es un análisis con permisos propios (integridad, coincidencias, separaciones), no un registro almacenado; no se evalúa aquí."));
+        enlaces.add(new Enlace("Eventos de ejecución (inicio/fin)","/trayectorias?jornada=" + id,"NO_CONSULTADO",null,
+            "No existe un permiso municipal específico aprobado para su consulta; no se verificó la existencia de registros."));
+        enlaces.add(evidencia(actor,"Inspecciones","FISCALIZACION_CONSULTAR","/fiscalizacion?jornada=" + id,id,"inspeccion"));
+        enlaces.add(evidencia(actor,"Fiscalización (resultado de un fiscalizador municipal)","FISCALIZACION_CONSULTAR","/fiscalizacion?jornada=" + id,id,"fiscalizacion"));
+        enlaces.add(evidencia(actor,"Incidencias","CORRECTIVA_CONSULTAR","/correctivas?jornada=" + id,id,"incidencia_operativa"));
+        enlaces.add(evidencia(actor,"Acciones correctivas","CORRECTIVA_CONSULTAR","/correctivas?jornada=" + id,id,"accion_correctiva"));
+        enlaces.add(evidencia(actor,"Reclamos asociados a la jornada","RECLAMO_CONSULTAR","/reclamos",id,"reclamo_institucional"));
         return new Detalle(jornada,cadena,asignaciones,avisos,enlaces);
+    }
+    private Enlace evidencia(UsuarioAutenticado actor,String modulo,String permiso,String ruta,UUID jornada,String tabla) {
+        if (!permisos.tiene(actor,permiso))
+            return new Enlace(modulo,ruta,"ACCESO_NO_PERMITIDO",null,"Su cuenta no tiene el permiso propio de este módulo: no se sabe si existen registros.");
+        int n = repositorio.contarReferencias(tabla,jornada);
+        return new Enlace(modulo,ruta,n > 0 ? "CON_REGISTROS" : "SIN_REGISTROS",n,
+            n > 0 ? "Registros existentes; su contenido se consulta en la vista del módulo. GPS e inspecciones son evidencia, no conclusión de cumplimiento."
+                  : "No hay registros para esta jornada en este módulo.");
     }
 }

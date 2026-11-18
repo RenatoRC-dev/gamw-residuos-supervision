@@ -152,6 +152,28 @@ class HistorialServicioIT extends IntegracionPostgresV8 {
         assertThat(enviar("GET",BASE+"/"+UUID.randomUUID(),t,null).estado()).isEqualTo(404);
     }
 
+    @Test void continuidadEntreOperadoresFiltroRutaJornadaYCambiosEnDatosVigentes() throws Exception {
+        String t=consultor();
+        var porRuta=enviar("GET",BASE+"?rutaId="+ruta,t,null);
+        assertThat(porRuta.estado()).isEqualTo(200);
+        assertThat(ids(porRuta)).containsExactlyInAnyOrder(j1.toString(),j2.toString(),jB.toString());
+        var empresaPorJornada=new HashMap<String,String>();
+        for(JsonNode n:json.readTree(porRuta.cuerpo()).get("jornadas")) empresaPorJornada.put(n.get("id").asText(),n.get("empresa").get("id").asText());
+        assertThat(empresaPorJornada.get(j1.toString())).isEqualTo(empresaA.toString());
+        assertThat(empresaPorJornada.get(jB.toString())).isEqualTo(empresaB.toString());
+        assertThat(ids(enviar("GET",BASE+"?jornadaId="+jB,t,null))).containsExactly(jB.toString());
+        assertThat(ids(enviar("GET",BASE+"?rutaId="+UUID.randomUUID(),t,null))).isEmpty();
+        // Un cambio en el dato vigente de la empresa no reasigna jornadas ni asignaciones: se conservan las identidades históricas.
+        jdbc.update("UPDATE empresa_operadora SET razon_social=? WHERE id=?","RENOMBRADA-"+empresaA,empresaA);
+        var d=json.readTree(enviar("GET",BASE+"/"+j1,t,null).cuerpo());
+        assertThat(d.get("jornada").get("empresa").get("id").asText()).isEqualTo(empresaA.toString());
+        assertThat(d.get("jornada").get("periodo").get("id").asText()).isEqualTo(periodoA.toString());
+        assertThat(d.get("jornada").get("ruta").get("versionId").asText()).isEqualTo(rv1.toString());
+        assertThat(d.get("asignaciones").get(0).get("vinculoVehiculoEmpresaId").asText()).isEqualTo(vv1.toString());
+        assertThat(d.get("asignaciones").get(1).get("vinculoPersonaEmpresaId").asText()).isEqualTo(vp2.toString());
+        assertThat(ids(enviar("GET",BASE+"?empresaId="+empresaB,t,null))).containsExactly(jB.toString());
+    }
+
     @Test void detalleConservaCadenaAsignacionesYValoresOriginalesSinEscribir() throws Exception {
         String t=consultor();
         int jornadasAntes=jdbc.queryForObject("SELECT count(*) FROM jornada",Integer.class),asignacionesAntes=jdbc.queryForObject("SELECT count(*) FROM asignacion_jornada",Integer.class);
@@ -182,6 +204,17 @@ class HistorialServicioIT extends IntegracionPostgresV8 {
         assertThat(n1.get("inconsistencias").toString()).doesNotContain("otra empresa");
         var enlaces=n1.get("enlaces").toString();
         assertThat(enlaces).contains("/trayectorias?jornada="+j1,"/revision-gps?jornada="+j1,"/fiscalizacion?jornada="+j1,"/correctivas?jornada="+j1);
+        // Evidencia: sin permiso propio no se sabe si existe («sin acceso» ≠ «sin registros»); ejecución no se consulta.
+        for(JsonNode e:n1.get("enlaces")) {
+            String modulo=e.get("modulo").asText(),estado=e.get("estado").asText();
+            assertThat(estado).as(modulo).isEqualTo(modulo.startsWith("Eventos de ejecución")||modulo.startsWith("Revisión técnica")?"NO_CONSULTADO":"ACCESO_NO_PERMITIDO");
+            assertThat(e.get("cantidad").isNull()).isTrue();
+        }
+        var amplio=usuario(); for(String p:List.of("JORNADAS_CONSULTAR","TRAYECTORIA_JORNADA_CONSULTAR","FISCALIZACION_CONSULTAR","CORRECTIVA_CONSULTAR","RECLAMO_CONSULTAR")) municipal(amplio,p);
+        var ev=json.readTree(enviar("GET",BASE+"/"+j1,token(amplio),null).cuerpo()).get("enlaces");
+        for(JsonNode e:ev) if(!e.get("modulo").asText().startsWith("Eventos de ejecución")&&!e.get("modulo").asText().startsWith("Revisión técnica")) {
+            assertThat(e.get("estado").asText()).isEqualTo("SIN_REGISTROS"); assertThat(e.get("cantidad").asInt()).isZero();
+        }
         // La sucesora no hereda asignaciones y lo declara; la cadena es la misma desde cualquier extremo.
         var n2=json.readTree(enviar("GET",BASE+"/"+j2,t,null).cuerpo());
         assertThat(n2.get("asignaciones").size()).isZero();
