@@ -41,7 +41,7 @@ class _CacheMemoria implements CacheJornadas {
 class _ApiContexto extends ClienteBackend {
   _ApiContexto() : super(Uri.parse('http://127.0.0.1:1/api'));
   bool sinRed = false;
-  int consultas = 0, enviosOperativos = 0;
+  int consultas = 0, consultasEjecucion = 0, enviosOperativos = 0;
   @override Future<Object?> solicitar(String metodo, String ruta, {Object? cuerpo, String? token}) async {
     if (ruta == 'autenticacion/login') {
       final nombre = (cuerpo as Map<String,Object?>)['nombreUsuario'] as String;
@@ -54,6 +54,12 @@ class _ApiContexto extends ClienteBackend {
       expect(token, 'cuenta-A');
       consultas++;
       return [_jornada()];
+    }
+    // Al seleccionar la asignación la pantalla consulta (GET, solo lectura) el estado de ejecución: no es envío de evidencia.
+    if (metodo == 'GET' && ruta.startsWith('mis-jornadas/jornada-sintetica/ejecucion')) {
+      expect(token, 'cuenta-A');
+      consultasEjecucion++;
+      return <String, dynamic>{'jornadaId': 'jornada-sintetica'};
     }
     enviosOperativos++;
     throw StateError('No debe enviar evidencia al consultar el contexto');
@@ -112,6 +118,7 @@ void main() {
       expect(find.text('Versión de ruta asignada: version-antigua-1'), findsOneWidget);
       expect(find.textContaining('SINTETICA-001'), findsOneWidget);
       expect(api.consultas, offline ? 0 : 1);
+      expect(api.consultasEjecucion, offline ? 0 : 1);
       expect(api.enviosOperativos, 0);
       await sesiones.cerrar();
       await sesiones.iniciar('cuenta-B', 'otra-clave-sintetica');

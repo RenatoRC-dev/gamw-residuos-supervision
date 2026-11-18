@@ -58,6 +58,11 @@ class _AlmacenGps extends _Almacen implements AlmacenEventosSqlite {
   @override Future<void> registrarPosicion(PosicionGpsLocal p) async => throw UnsupportedError('No hay proveedor en este test de control');
   @override Future<void> estadoPosicion(String captura,EstadoSincronizacion estado,String? error) async { }
 }
+// La pantalla solo habilita INICIO/FIN dentro del intervalo de la asignación (vigenteDesde obligatorio; deniega por defecto si falta).
+// El intervalo del doble es relativo a "ahora" para que la prueba no caduque con el calendario.
+String _desde() => DateTime.now().subtract(const Duration(hours: 1)).toUtc().toIso8601String();
+Map<String,dynamic> _jornadaAsignada() => {'jornadaId':_Backend.jornada,'asignacionJornadaId':_Backend.asignacion,
+  'inicioProgramado':'2026-11-08','vigente':true,'vigenteDesde':_desde(),'vigenteHasta':null};
 class _Backend extends ClienteBackend {
   _Backend():super(Uri.parse('http://127.0.0.1:1/api'));
   static const id='11111111-1111-4111-8111-111111111111';
@@ -77,8 +82,10 @@ class _Backend extends ClienteBackend {
     if(sinRed) throw const SocketException('Sin conexión');
     if(ruta=='mis-jornadas') {
       if(token==otroId) return [];
-      return [{'jornadaId':jornada,'asignacionJornadaId':asignacion,'inicioProgramado':'2026-11-08','vigente':true}];
+      return [_jornadaAsignada()];
     }
+    // Consulta de solo lectura del estado de ejecución al seleccionar la asignación (GET): no es un envío de evidencia.
+    if(metodo=='GET' && ruta.startsWith('mis-jornadas/$jornada/ejecucion')) return <String,dynamic>{'jornadaId':jornada};
     envios++;
     if(rechazarEnvios) throw const ErrorBackend(401);
     final d=cuerpo! as Map<String,Object?>;
@@ -87,7 +94,7 @@ class _Backend extends ClienteBackend {
 }
 class _Cache implements CacheJornadas {
   @override Future<List<Map<String,dynamic>>> leer(String id) async => id==_Backend.id
-    ? [{'jornadaId':_Backend.jornada,'asignacionJornadaId':_Backend.asignacion,'inicioProgramado':'2026-11-08','vigente':true}] : [];
+    ? [_jornadaAsignada()] : [];
   @override Future<void> guardar(String id,List<Map<String,dynamic>> j) async { }
 }
 void main() {

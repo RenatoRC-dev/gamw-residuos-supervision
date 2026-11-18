@@ -12,7 +12,9 @@ jobs:
   # H-04: integración real contra PostgreSQL/PostGIS EFÍMERO. Cada JVM crea su propio clúster (initdb en un directorio temporal,
   # puerto local, roles y contraseñas aleatorias, sin DB_* ni .env ni bases existentes). No hay credenciales ni destinos externos.
   backend-integration:
-    runs-on: ubuntu-latest
+    # Fijado: ubuntu-latest migra a Ubuntu 26.04, cuyos repositorios no ofrecen postgresql-16 ni postgresql-16-postgis-3.
+    # Ubuntu 24.04 los incluye (PostgreSQL 16 + PostGIS 3.4).
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       GAMW_PG_BIN: /usr/lib/postgresql/16/bin
