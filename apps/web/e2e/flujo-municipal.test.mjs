@@ -69,14 +69,24 @@ test('Flujo municipal: trayectoria, expediente e historial con permisos separado
     // ---------- Historial CU-29 ----------
     await irInicio();
     await page.getByRole('link', { name: 'Consultar historial institucional del servicio' }).click();
+    const filasHistorial = page.locator('table tbody tr');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
-    await page.getByRole('button', { name: 'Ver detalle' }).first().waitFor();
+    await page.waitForFunction(() => document.querySelectorAll('table tbody tr').length >= 1); // primera consulta sin filtros resuelta
+    // La BD de prueba puede contener otras jornadas sintéticas: se filtra por el identificador exacto y se exige UNA sola fila.
     await page.getByLabel('Jornada (ID)').fill(jornada);
+    const filtrada = page.waitForResponse(r => r.url().includes('/api/historial-servicio/jornadas?') && r.url().includes(`jornadaId=${jornada}`));
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
-    await page.getByRole('button', { name: 'Ver detalle' }).click();
+    assert.equal((await filtrada).status(), 200);
+    await page.waitForFunction(() => document.querySelectorAll('table tbody tr').length === 1); // desaparece el resultado anterior
+    assert.equal(await filasHistorial.count(), 1, 'El filtro por jornada devuelve exactamente una fila.');
+    const fila = filasHistorial.filter({ hasText: 'Empresa sintética flujo municipal' });
+    assert.equal(await fila.count(), 1, 'La única fila es la jornada sintética de esta prueba.');
+    await fila.getByRole('button', { name: 'Ver detalle' }).click();
     await page.getByText(/identidad histórica \(ID\)/).waitFor();
     await page.getByText('Con registros (3)').waitFor(); // trayectoria, con su permiso propio
-    await page.getByText(/^Sin registros/).first().waitFor(); // inspecciones: ausencia, no incumplimiento
+    const inspecciones = page.locator('li').filter({ hasText: /^Inspecciones/ });
+    assert.equal(await inspecciones.count(), 1);
+    await inspecciones.getByText(/^Sin registros/).waitFor(); // inspecciones: ausencia, no incumplimiento
     // Ninguna pantalla afirma cumplimiento o incumplimiento por GPS.
     const texto = await page.locator('main').innerText();
     assert.ok(!/\b(cumple|incumple|sanción|multa)\b/i.test(texto), 'No debe emitirse un veredicto automático.');
