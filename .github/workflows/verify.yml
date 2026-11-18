@@ -27,10 +27,22 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: backend/pom.xml
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: mvnw-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
+      - name: Maven Wrapper (descarga verificada por SHA-256, con reintentos)
+        working-directory: backend
+        run: |
+          for i in 1 2 3 4 5; do
+            sh ./mvnw --batch-mode -v && exit 0
+            echo "Descarga de Maven falló (intento $i); reintentando"; sleep $((i * 20))
+          done
+          exit 1
       - name: PostgreSQL 16 y PostGIS (solo binarios; el clúster lo crea la prueba)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends postgresql-16 postgresql-16-postgis-3
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends postgresql-16 postgresql-16-postgis-3
           sudo systemctl stop postgresql || true
       - name: Integración esencial (Flyway V1–V19, seguridad, cadena operativa, historial, bitácora)
         working-directory: backend
@@ -66,6 +78,18 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: backend/pom.xml
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: mvnw-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
+      - name: Maven Wrapper (descarga verificada por SHA-256, con reintentos)
+        working-directory: backend
+        run: |
+          for i in 1 2 3 4 5; do
+            sh ./mvnw --batch-mode -v && exit 0
+            echo "Descarga de Maven falló (intento $i); reintentando"; sleep $((i * 20))
+          done
+          exit 1
       - name: Backend tests
         working-directory: backend
         run: sh ./mvnw --batch-mode --no-transfer-progress test
