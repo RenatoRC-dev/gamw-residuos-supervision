@@ -32,6 +32,8 @@ public class AutorizacionMunicipal {
             default -> throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"Revisión no admitida.");
         });
     }
+    /** CU-29: reutiliza JORNADAS_CONSULTAR (mismos datos ya expuestos por /api/jornadas); no existe permiso histórico específico aprobado. */
+    public void exigirConsultaHistorialServicio(UsuarioAutenticado actor) { exigir(actor,"JORNADAS_CONSULTAR"); }
     public void exigirConsultaCorrectiva(UsuarioAutenticado actor) { exigir(actor,"CORRECTIVA_CONSULTAR"); }
     public void exigirConsultaReclamo(UsuarioAutenticado actor) { exigir(actor,"RECLAMO_CONSULTAR"); }
     public void exigirRegistroReclamo(UsuarioAutenticado actor) { exigir(actor,"RECLAMO_REGISTRAR"); }

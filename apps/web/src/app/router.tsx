@@ -32,7 +32,11 @@ const PaginaAdministracionUsuarios = lazy(() => import('../modules/administracio
 const PaginaReclamosPuntos = lazy(() => import('../modules/reclamos/paginas/PaginaReclamosPuntos')
   .then(module => ({ default: module.PaginaReclamosPuntos })));
 
+const PaginaHistorialServicio = lazy(() => import('../modules/historial/paginas/PaginaHistorialServicio')
+  .then(module => ({ default: module.PaginaHistorialServicio })));
+
 export const appRoutes = [{ element: <ProveedorAutenticacion><Outlet /></ProveedorAutenticacion>, children: [
+  { path: '/historial-servicio', element: <Suspense fallback={<p role="status">Cargando historial…</p>}><PaginaHistorialServicio /></Suspense> },
   { path: '/reclamos', element: <Suspense fallback={<p role="status">Cargando reclamos y puntos…</p>}><PaginaReclamosPuntos /></Suspense> },
   { path: '/administracion/usuarios', element: <Suspense fallback={<p role="status">Cargando administración…</p>}><PaginaAdministracionUsuarios /></Suspense> },
   { path: '/empresa/jornadas', element: <Suspense fallback={<p role="status">Cargando reprogramación…</p>}><PaginaReprogramacionEmpresa /></Suspense> },

@@ -20,6 +20,7 @@ export function TechnicalHome() {
       <p><Link to="/acceso">Autenticarse en GAMW</Link></p>
       <p><Link to="/administracion/usuarios">Administrar usuarios y permisos institucionales</Link></p>
       <p><Link to="/reclamos">Gestionar reclamos institucionales y puntos críticos</Link></p>
+      <p><Link to="/historial-servicio">Consultar historial institucional del servicio</Link></p>
       <p><Link to="/trayectorias">Consultar trayectoria GPS de jornada</Link></p>
       <p><Link to="/monitoreo">Monitorear últimas posiciones</Link></p>
       <p><Link to="/referencias">Gestionar referencias espaciales</Link></p>
