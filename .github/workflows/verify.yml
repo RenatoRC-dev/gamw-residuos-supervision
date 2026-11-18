@@ -55,7 +55,9 @@ jobs:
           codigo=$?
           tail -n 400 "$RUNNER_TEMP/mvn-it.log"
           if [ "$codigo" -ne 0 ]; then
-            resumen=$(grep -nE 'ERROR|FAIL|Tests run:|IllegalState|Caused by' "$RUNNER_TEMP/mvn-it.log" | head -40 | cut -c1-300 | sed ':a;N;$!ba;s/\n/%0A/g')
+            # Primera causa raíz: excepciones del arnés y registros de initdb/pg_ctl/postgres del clúster efímero (si se conservaron).
+            resumen=$( { grep -nE 'Falló el aprovisionamiento|Se requiere PostgreSQL|Caused by|FATAL|could not|Permission denied' "$RUNNER_TEMP/mvn-it.log" | head -12
+              for f in "${TMPDIR:-/tmp}"/gamw-v8-it-*/*.log; do [ -f "$f" ] && { echo "== $f"; tail -n 12 "$f"; }; done; } | cut -c1-260 | head -70 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=Fallos de integracion::${resumen}"
           fi
           exit $codigo

@@ -58,7 +58,10 @@ public final class PostgresV8Aislado implements AutoCloseable {
             }
             ejecutar("initdb", "-D", datos.toString(), "-U", "gamw_bootstrap_it", "--auth-local=trust",
                     "--auth-host=trust", "--encoding=UTF8", "--locale=C");
-            Files.writeString(datos.resolve("postgresql.conf"), "\nlisten_addresses='127.0.0.1'\nport=" + puerto + "\n", StandardCharsets.UTF_8,
+            // En Linux (paquetes Debian/Ubuntu) el directorio de sockets Unix por defecto es /var/run/postgresql, no escribible por un usuario
+            // sin privilegios: el arranque falla. Se desactivan los sockets Unix; todo acceso es TCP en 127.0.0.1 (más aislado, no menos).
+            String sockets = WINDOWS ? "" : "unix_socket_directories=''\n";
+            Files.writeString(datos.resolve("postgresql.conf"), "\nlisten_addresses='127.0.0.1'\nport=" + puerto + "\n" + sockets, StandardCharsets.UTF_8,
                     java.nio.file.StandardOpenOption.APPEND);
             // Un start fallido puede haber creado un proceso: close verifica PID y propiedad.
             iniciado = true;
