@@ -89,4 +89,15 @@ jobs:
         run: flutter analyze
       - name: Mobile tests
         working-directory: apps/mobile
-        run: flutter test
+        # El resultado de las pruebas no se altera: el paso falla si falla alguna. Solo se publica un resumen de los fallos como anotación
+        # (visible sin descargar logs) para diagnosticar fallos de CI.
+        run: |
+          set +e
+          flutter test --reporter expanded > "$RUNNER_TEMP/flutter-test.log" 2>&1
+          codigo=$?
+          cat "$RUNNER_TEMP/flutter-test.log"
+          if [ "$codigo" -ne 0 ]; then
+            resumen=$(grep -nE '\[E\]|EXCEPTION|Expected:|Actual:|Which:|\.dart:[0-9]+|Some tests failed' "$RUNNER_TEMP/flutter-test.log" | head -50 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Fallos de flutter test::${resumen}"
+          fi
+          exit $codigo
