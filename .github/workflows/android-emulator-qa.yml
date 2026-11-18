@@ -1,0 +1,71 @@
+name: Android emulator QA (on demand)
+
+# QA automatizada en EMULADOR, solo bajo demanda: no afecta al CI estándar (verify.yml).
+# NO sustituye la QA física: GPS nativo real, batería, segundo plano y restricciones de fabricantes siguen PENDING.
+# Backend y PostgreSQL/PostGIS son efímeros y propios de la prueba; solo datos y credenciales sintéticas.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  emulator-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Habilitar KVM para el emulador
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: mvnw-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
+      - name: Maven Wrapper (descarga verificada por SHA-256, con reintentos)
+        working-directory: backend
+        run: |
+          for i in 1 2 3 4 5; do
+            sh ./mvnw --batch-mode -v && exit 0
+            echo "Descarga de Maven falló (intento $i); reintentando"; sleep $((i * 20))
+          done
+          exit 1
+      - name: PostgreSQL 16 y PostGIS (solo binarios; el clúster lo crea la prueba)
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends postgresql-16 postgresql-16-postgis-3
+          sudo systemctl stop postgresql || true
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          channel: stable
+          cache: true
+      - name: Dependencias móviles
+        working-directory: apps/mobile
+        run: flutter pub get --enforce-lockfile
+      - name: QA en emulador (API 34, x86_64)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash ./.github/scripts/android_emulador_qa.sh
+      - name: Informe, registros sanitizados y capturas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-emulador
+          path: qa-emulador
+          if-no-files-found: warn
+          retention-days: 14

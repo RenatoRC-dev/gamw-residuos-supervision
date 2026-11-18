@@ -1,1 +1,6 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # QA de emulador bajo demanda (workflow android-emulator-qa): se compila y ejecuta allí; no forma parte del análisis del CI estándar.
+    - qa_emulador/**
