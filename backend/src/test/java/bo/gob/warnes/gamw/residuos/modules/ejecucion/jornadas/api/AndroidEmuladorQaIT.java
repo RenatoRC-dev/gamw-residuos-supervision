@@ -130,13 +130,18 @@ class AndroidEmuladorQaIT extends IntegracionPostgresV8 {
     /** Comprobación explícita desde el dispositivo: el puerto del backend debe responder (reverse activo). */
     private void asegurarAlcanzable(String adb,String dispositivo,String tcp,Path movil,String momento) throws Exception {
         assertThat(salida(List.of(adb,"-s",dispositivo,"reverse","--list"),movil)).as("reverse activo "+momento).contains(tcp);
-        assertThat(codigo(List.of(adb,"-s",dispositivo,"shell","nc","-z","-w","3","127.0.0.1",tcp.substring(4)),movil)).as("backend alcanzable "+momento).isZero();
+        assertThat(codigo(sondaPuerto(adb,dispositivo,tcp),movil)).as("backend alcanzable "+momento).isZero();
     }
 
     /** Sin red: ningún reverse y el puerto NO responde desde el dispositivo; si respondiera, la prueba falla (no se continúa). */
     private void asegurarInalcanzable(String adb,String dispositivo,String tcp,Path movil) throws Exception {
         assertThat(salida(List.of(adb,"-s",dispositivo,"reverse","--list"),movil)).as("adb reverse NO debe seguir activo en la fase sin red").doesNotContain(tcp);
-        assertThat(codigo(List.of(adb,"-s",dispositivo,"shell","nc","-z","-w","3","127.0.0.1",tcp.substring(4)),movil)).as("backend inalcanzable desde el dispositivo").isNotZero();
+        assertThat(codigo(sondaPuerto(adb,dispositivo,tcp),movil)).as("backend inalcanzable desde el dispositivo").isNotZero();
+    }
+
+    /** toybox nc no ofrece -z: se abre la conexión con entrada vacía; código 0 solo si el puerto acepta, distinto de 0 si se rechaza. */
+    private List<String> sondaPuerto(String adb,String dispositivo,String tcp) {
+        return List.of(adb,"-s",dispositivo,"shell","echo | nc -w 3 127.0.0.1 "+tcp.substring(4));
     }
 
     private List<String> comandoFlutter() { return WINDOWS ? List.of("cmd.exe","/d","/c","flutter") : List.of("flutter"); }

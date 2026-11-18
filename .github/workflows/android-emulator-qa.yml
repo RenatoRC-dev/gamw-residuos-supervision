@@ -5,6 +5,17 @@ name: Android emulator QA (on demand)
 # Backend y PostgreSQL/PostGIS son efímeros y propios de la prueba; solo datos y credenciales sintéticas.
 on:
   workflow_dispatch:
+  # Disparo acotado: solo la rama de trabajo actual y solo si cambia la QA Android o su workflow. El workflow aún no existe en la rama
+  # por defecto, por lo que workflow_dispatch no puede usarse hasta entonces. No implica merge a main.
+  push:
+    branches:
+      - feat/gamw-checkpoint-fiscalizacion-20261109
+    paths:
+      - .github/workflows/android-emulator-qa.yml
+      - .github/scripts/android_emulador_qa.sh
+      - apps/mobile/qa_emulador/**
+      - apps/mobile/analysis_options_qa_emulador.yaml
+      - backend/src/test/java/bo/gob/warnes/gamw/residuos/modules/ejecucion/jornadas/api/AndroidEmuladorQaIT.java
 
 permissions:
   contents: read
@@ -51,6 +62,10 @@ jobs:
       - name: Dependencias móviles
         working-directory: apps/mobile
         run: flutter pub get --enforce-lockfile
+      - name: Análisis y compilación de la QA de emulador (no excluida aquí)
+        working-directory: apps/mobile
+        # Errores y advertencias fallan el paso; las sugerencias de estilo (info) no. Se analiza qa_emulador/ con opciones sin exclusión.
+        run: dart analyze --options=analysis_options_qa_emulador.yaml qa_emulador
       - name: QA en emulador (API 34, x86_64)
         uses: reactivecircus/android-emulator-runner@v2
         with:

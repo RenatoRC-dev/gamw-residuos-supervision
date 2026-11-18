@@ -1,0 +1,2 @@
+# Análisis de la QA de emulador (workflow android-emulator-qa). A diferencia de analysis_options.yaml, NO excluye qa_emulador/.
+include: package:flutter_lints/flutter.yaml
