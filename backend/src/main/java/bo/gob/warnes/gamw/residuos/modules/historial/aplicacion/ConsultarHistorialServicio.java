@@ -68,13 +68,13 @@ public class ConsultarHistorialServicio {
         enlaces.add(evidencia(actor,"Fiscalización (resultado de un fiscalizador municipal)","FISCALIZACION_CONSULTAR","/fiscalizacion?jornada=" + id,id,"fiscalizacion"));
         enlaces.add(evidencia(actor,"Incidencias","CORRECTIVA_CONSULTAR","/correctivas?jornada=" + id,id,"incidencia_operativa"));
         enlaces.add(evidencia(actor,"Acciones correctivas","CORRECTIVA_CONSULTAR","/correctivas?jornada=" + id,id,"accion_correctiva"));
-        enlaces.add(evidencia(actor,"Reclamos asociados a la jornada","RECLAMO_CONSULTAR","/reclamos",id,"reclamo_institucional"));
+        enlaces.add(evidencia(actor,"Reclamos vinculados (directos o por relación con la jornada, sus incidencias, acciones o inspecciones)","RECLAMO_CONSULTAR","/reclamos",id,"reclamo_institucional"));
         return new Detalle(jornada,cadena,asignaciones,avisos,enlaces);
     }
     private Enlace evidencia(UsuarioAutenticado actor,String modulo,String permiso,String ruta,UUID jornada,String tabla) {
         if (!permisos.tiene(actor,permiso))
             return new Enlace(modulo,ruta,"ACCESO_NO_PERMITIDO",null,"Su cuenta no tiene el permiso propio de este módulo: no se sabe si existen registros.");
-        int n = repositorio.contarReferencias(tabla,jornada);
+        int n = "reclamo_institucional".equals(tabla) ? repositorio.contarReclamos(jornada) : repositorio.contarReferencias(tabla,jornada);
         return new Enlace(modulo,ruta,n > 0 ? "CON_REGISTROS" : "SIN_REGISTROS",n,
             n > 0 ? "Registros existentes; su contenido se consulta en la vista del módulo. GPS e inspecciones son evidencia, no conclusión de cumplimiento."
                   : "No hay registros para esta jornada en este módulo.");

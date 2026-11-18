@@ -63,7 +63,7 @@ function Historial({ jornadaId, elegir }: { jornadaId: string; elegir: (id: stri
     {!aplicados && !error && <p>Defina filtros (o ninguno) y pulse Buscar.</p>}
     {lista && lista.length === 0 && <p role="status">La consulta no encontró antecedentes para esos filtros. No se creó ni modificó ningún registro.</p>}
     {lista && lista.length > 0 && <>
-      <table><thead><tr><th>Inicio programado</th><th>Empresa operadora</th><th>Periodo</th><th>Ruta / versión</th><th>Estado</th><th>Asignaciones</th><th /></tr></thead>
+      <table><thead><tr><th>Inicio programado</th><th>Empresa operadora (nombre actual del maestro)</th><th>Periodo (histórico)</th><th>Ruta / versión</th><th>Estado</th><th>Asignaciones</th><th /></tr></thead>
         <tbody>{lista.map(j => <tr key={j.id}>
           <td>{formato(j.inicioProgramado)}</td>
           <td>{j.empresa.razonSocial} <button type="button" onClick={() => { const f = { ...filtros, empresaId: j.empresa.id }; setFiltros(f); setDesplazamiento(0); setAplicados(f); }}>Filtrar</button></td>
@@ -103,7 +103,8 @@ function DetalleJornadaHistorica({ id, volver, elegir }: { id: string; volver: (
     {datos && <>
       <h2>Jornada {formato(datos.jornada.inicioProgramado)}</h2>
       <dl>
-        <dt>Empresa operadora (del periodo original)</dt><dd>{datos.jornada.empresa.razonSocial}</dd>
+        <dt>Empresa operadora del periodo original — identidad histórica (ID)</dt><dd>{datos.jornada.empresa.id}</dd>
+        <dt>Nombre actual de esa empresa en el maestro (puede diferir del vigente al momento de la jornada)</dt><dd>{datos.jornada.empresa.razonSocial}</dd>
         <dt>Periodo de servicio</dt><dd>{datos.jornada.periodo.fechaInicio} → {datos.jornada.periodo.fechaFin}</dd>
         <dt>Ruta y versión originales</dt><dd>{datos.jornada.ruta.nombre} · versión {datos.jornada.ruta.numeroVersion} (vigencia {formato(datos.jornada.ruta.vigenteDesde)} → {formato(datos.jornada.ruta.vigenteHasta)})</dd>
         <dt>Estado de la programación</dt><dd>{datos.jornada.vigente ? 'Vigente' : 'Reprogramada: sustituida por una sucesora'}{datos.jornada.motivoReprogramacion ? ` · motivo: ${datos.jornada.motivoReprogramacion}` : ''}</dd>
@@ -114,8 +115,8 @@ function DetalleJornadaHistorica({ id, volver, elegir }: { id: string; volver: (
         {' '}— {c.empresa.razonSocial}, v{c.ruta.numeroVersion}, {c.vigente ? 'vigente' : 'sustituida'}{c.motivoReprogramacion ? `, motivo: ${c.motivoReprogramacion}` : ''}</li>)}</ol>
       <h3>Historial de asignaciones de recursos</h3>
       {datos.asignaciones.length === 0 ? <p>No hay asignaciones registradas para esta jornada.</p>
-        : <table><thead><tr><th>Desde</th><th>Hasta</th><th>Vehículo</th><th>Responsable</th><th>Motivo</th></tr></thead>
-          <tbody>{datos.asignaciones.map(a => <tr key={a.id}><td>{formato(a.vigenteDesde)}</td><td>{a.vigenteHasta ? formato(a.vigenteHasta) : 'Abierta'}</td><td>{a.placa}</td><td>{a.responsable}</td><td>{a.motivoCambio ?? '—'}</td></tr>)}</tbody></table>}
+        : <table><thead><tr><th>Desde</th><th>Hasta</th><th>Vehículo (placa actual del maestro)</th><th>Responsable (nombre actual del maestro)</th><th>Vínculos históricos (ID)</th><th>Motivo</th></tr></thead>
+          <tbody>{datos.asignaciones.map(a => <tr key={a.id}><td>{formato(a.vigenteDesde)}</td><td>{a.vigenteHasta ? formato(a.vigenteHasta) : 'Abierta'}</td><td>{a.placa}</td><td>{a.responsable}</td><td>{a.vinculoVehiculoEmpresaId} / {a.vinculoPersonaEmpresaId}</td><td>{a.motivoCambio ?? '—'}</td></tr>)}</tbody></table>}
       <h3>Evidencias (vistas existentes)</h3>
       <p>El recuento solo se muestra cuando su cuenta tiene el permiso propio de cada módulo. «Acceso no permitido» no significa que no existan registros. El GPS y las inspecciones son evidencia; no concluyen cumplimiento.</p>
       <ul>{datos.enlaces.map(l => <li key={l.modulo}><Link to={l.ruta}>{l.modulo}</Link> — <strong>{ETIQUETA[l.estado] ?? l.estado}{l.cantidad !== null ? ` (${l.cantidad})` : ''}</strong>. {l.nota}</li>)}</ul>

@@ -152,6 +152,44 @@ class HistorialServicioIT extends IntegracionPostgresV8 {
         assertThat(enviar("GET",BASE+"/"+UUID.randomUUID(),t,null).estado()).isEqualTo(404);
     }
 
+    private UUID reclamo(UUID jornadaDirecta,UUID usuario,String descripcion) {
+        UUID id=UUID.randomUUID();
+        jdbc.update("INSERT INTO reclamo_institucional(id,solicitud_id,huella_solicitud,canal_declarado,recibido_en,descripcion,lugar_descripcion,referencias_origen,jornada_id,usuario_id) VALUES (?,?,'h','canal sintético',now(),?,'lugar sintético','origen sintético',?,?)",
+            id,UUID.randomUUID(),descripcion,jornadaDirecta,usuario);
+        return id;
+    }
+    private void relacionarJornada(UUID reclamo,UUID jornada,UUID usuario) {
+        jdbc.update("INSERT INTO relacion_reclamo(id,reclamo_id,jornada_id,fundamento,usuario_id) VALUES (?,?,?,'fundamento sintético',?)",UUID.randomUUID(),reclamo,jornada,usuario);
+    }
+    private JsonNode evidenciaReclamos(String jwt,UUID jornada) throws Exception {
+        for(JsonNode e:json.readTree(enviar("GET",BASE+"/"+jornada,jwt,null).cuerpo()).get("enlaces")) if(e.get("modulo").asText().startsWith("Reclamos")) return e;
+        throw new AssertionError("Sin entrada de reclamos");
+    }
+
+    @Test void cuentaReclamosDirectosYRelacionadosSinDuplicarYSinExponerlosSinPermiso() throws Exception {
+        var autor=usuario();
+        var lector=usuario(); municipal(lector,"JORNADAS_CONSULTAR"); String sinPermiso=token(lector);
+        var conPermiso=usuario(); municipal(conPermiso,"JORNADAS_CONSULTAR"); municipal(conPermiso,"RECLAMO_CONSULTAR"); String t=token(conPermiso);
+        // Vacío: ningún reclamo para j2.
+        var vacio=evidenciaReclamos(t,j2);
+        assertThat(vacio.get("estado").asText()).isEqualTo("SIN_REGISTROS"); assertThat(vacio.get("cantidad").asInt()).isZero();
+        // R1 solo por relacion_reclamo (reclamo_institucional.jornada_id nulo); R2 directo y también relacionado (no se duplica).
+        UUID r1=reclamo(null,autor.id(),"DESCRIPCION-INDIRECTA-"+UUID.randomUUID());
+        relacionarJornada(r1,j1,autor.id());
+        UUID r2=reclamo(j1,autor.id(),"DESCRIPCION-DIRECTA-"+UUID.randomUUID());
+        relacionarJornada(r2,j1,autor.id());
+        var con=evidenciaReclamos(t,j1);
+        assertThat(con.get("estado").asText()).isEqualTo("CON_REGISTROS");
+        assertThat(con.get("cantidad").asInt()).isEqualTo(2);
+        assertThat(evidenciaReclamos(t,j2).get("cantidad").asInt()).isZero(); // otra jornada de la cadena no hereda
+        // Sin RECLAMO_CONSULTAR: ni cantidad ni datos del reclamo.
+        var sin=evidenciaReclamos(sinPermiso,j1);
+        assertThat(sin.get("estado").asText()).isEqualTo("ACCESO_NO_PERMITIDO"); assertThat(sin.get("cantidad").isNull()).isTrue();
+        String cuerpo=enviar("GET",BASE+"/"+j1,sinPermiso,null).cuerpo();
+        assertThat(cuerpo).doesNotContain("DESCRIPCION-",r1.toString(),r2.toString());
+        assertThat(enviar("GET",BASE+"/"+j1,t,null).cuerpo()).doesNotContain("DESCRIPCION-",r1.toString(),r2.toString()); // solo cuenta, nunca el contenido
+    }
+
     @Test void continuidadEntreOperadoresFiltroRutaJornadaYCambiosEnDatosVigentes() throws Exception {
         String t=consultor();
         var porRuta=enviar("GET",BASE+"?rutaId="+ruta,t,null);

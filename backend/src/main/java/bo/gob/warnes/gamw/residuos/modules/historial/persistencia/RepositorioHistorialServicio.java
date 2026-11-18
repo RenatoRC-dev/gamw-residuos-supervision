@@ -32,6 +32,21 @@ public class RepositorioHistorialServicio {
         if (!TABLAS_EVIDENCIA.contains(tabla)) throw new IllegalArgumentException("Tabla no admitida.");
         return jdbc.queryForObject("SELECT count(*) FROM " + tabla + " WHERE jornada_id=?",Integer.class,jornada);
     }
+    /**
+     * Reclamos distintos vinculados a la jornada: directos (reclamo_institucional.jornada_id) o por relacion_reclamo hacia la propia
+     * jornada o hacia sus incidencias, acciones correctivas e inspecciones. UNION evita duplicados. Solo cuenta; no expone datos del reclamo.
+     */
+    public int contarReclamos(UUID jornada) {
+        return jdbc.queryForObject("""
+            SELECT count(*) FROM (
+              SELECT id FROM reclamo_institucional WHERE jornada_id=?
+              UNION SELECT reclamo_id FROM relacion_reclamo WHERE jornada_id=?
+              UNION SELECT rr.reclamo_id FROM relacion_reclamo rr JOIN incidencia_operativa i ON i.id=rr.incidencia_id WHERE i.jornada_id=?
+              UNION SELECT rr.reclamo_id FROM relacion_reclamo rr JOIN accion_correctiva a ON a.id=rr.accion_correctiva_id WHERE a.jornada_id=?
+              UNION SELECT rr.reclamo_id FROM relacion_reclamo rr JOIN inspeccion n ON n.id=rr.inspeccion_id WHERE n.jornada_id=?
+            ) r
+            """,Integer.class,jornada,jornada,jornada,jornada,jornada);
+    }
     public List<ResumenJornada> buscar(UUID jornada,UUID periodo,UUID empresa,UUID ruta,LocalDate desde,LocalDate hasta,int limite,int desplazamiento) {
         var sql = new StringBuilder(BASE).append(" WHERE true");
         var args = new ArrayList<Object>();
