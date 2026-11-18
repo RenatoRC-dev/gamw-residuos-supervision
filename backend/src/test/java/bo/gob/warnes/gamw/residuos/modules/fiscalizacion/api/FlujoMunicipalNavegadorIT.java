@@ -189,14 +189,36 @@ class FlujoMunicipalNavegadorIT extends IntegracionPostgresV8 {
             assertThat(json.readTree(api("GET","/api/empresa/correctivas",top,null).body()).get("acciones").size()).isEqualTo(1);
             assertThat(contar("SELECT count(*) FROM respuesta_correctiva WHERE accion_id=?",accion)).isZero();
 
-            // 4) El operador del periodo responde (REST, NO por la UI); reintento idempotente y conflicto por contenido distinto
-            var respuesta=api("POST","/api/empresa/correctivas/"+accion+"/respuestas",top,atencion);
-            assertThat(respuesta.statusCode()).isEqualTo(200);
-            assertThat(api("POST","/api/empresa/correctivas/"+accion+"/respuestas",top,atencion).statusCode()).as("respuesta idempotente").isEqualTo(200);
-            var otraObservacion=new LinkedHashMap<>((Map<String,Object>) atencion); otraObservacion.put("observaciones","Contenido distinto con el mismo solicitudId");
+            // Datos inválidos del operador autorizado: 400 y nada se registra.
+            var sinObservaciones=new LinkedHashMap<>((Map<String,Object>) atencion); sinObservaciones.put("solicitudId",UUID.randomUUID()); sinObservaciones.put("observaciones"," ");
+            assertThat(api("POST","/api/empresa/correctivas/"+accion+"/respuestas",top,sinObservaciones).statusCode()).as("observaciones obligatorias").isEqualTo(400);
+            var futura=new LinkedHashMap<>((Map<String,Object>) atencion); futura.put("solicitudId",UUID.randomUUID()); futura.put("comunicadaEn",Instant.now().plus(1,ChronoUnit.DAYS).truncatedTo(ChronoUnit.MICROS).toString());
+            assertThat(api("POST","/api/empresa/correctivas/"+accion+"/respuestas",top,futura).statusCode()).as("fecha futura").isEqualTo(400);
+            var campoAjeno=new LinkedHashMap<>((Map<String,Object>) atencion); campoAjeno.put("solicitudId",UUID.randomUUID()); campoAjeno.put("usuarioId",uFc);
+            assertThat(api("POST","/api/empresa/correctivas/"+accion+"/respuestas",top,campoAjeno).statusCode()).as("la identidad no viene del cliente").isIn(400);
+            assertThat(contar("SELECT count(*) FROM respuesta_correctiva WHERE accion_id=?",accion)).isZero();
+            Map<String,Object> accionAntes=jdbc.queryForMap("SELECT id,usuario_id,descripcion,creada_en,huella_solicitud FROM accion_correctiva WHERE id=?",accion);
+
+            // 4) El OPERADOR (A4) responde por la INTERFAZ real (JWT + concesión de periodo): envío fallido + reintento idempotente; otro operador no ve la acción
+            env.put("GAMW_WEB_TEST_OPERADOR",operador);
+            env.put("GAMW_WEB_TEST_OPERADOR_OTRO",operadorOtro);
+            nodo(directorio,"e2e/flujo-correctivo.test.mjs",env,Map.of("GAMW_WEB_TEST_FASE","1b"));
+            assertThat(contar("SELECT count(*) FROM respuesta_correctiva WHERE accion_id=?",accion)).as("el envío fallido más el reintento dejan UNA respuesta").isEqualTo(1);
+            var filaRespuesta=jdbc.queryForMap("SELECT id,solicitud_id,usuario_id,comunicada_en,registrada_en,descripcion FROM respuesta_correctiva WHERE accion_id=?",accion);
+            UUID respuestaId=(UUID) filaRespuesta.get("id");
+            assertThat(filaRespuesta.get("usuario_id")).as("autor = operador autenticado").isEqualTo(uOp);
+            assertThat(((Timestamp) filaRespuesta.get("registrada_en")).toInstant()).isAfterOrEqualTo(((Timestamp) filaRespuesta.get("comunicada_en")).toInstant());
+            assertThat(filaRespuesta.get("descripcion").toString()).contains("bloqueo retirado");
+            // La solicitud municipal original no cambia (autor, fecha, contenido).
+            assertThat(jdbc.queryForMap("SELECT id,usuario_id,descripcion,creada_en,huella_solicitud FROM accion_correctiva WHERE id=?",accion)).isEqualTo(accionAntes);
+            // La misma solicitud con contenido distinto es conflicto; una respuesta NO es una verificación y el operador no puede verificar.
+            var otraObservacion=new LinkedHashMap<>((Map<String,Object>) atencion); otraObservacion.put("solicitudId",filaRespuesta.get("solicitud_id")); otraObservacion.put("observaciones","Contenido distinto con el mismo solicitudId");
             assertThat(api("POST","/api/empresa/correctivas/"+accion+"/respuestas",top,otraObservacion).statusCode()).isEqualTo(409);
             assertThat(contar("SELECT count(*) FROM respuesta_correctiva WHERE accion_id=?",accion)).isEqualTo(1);
-            UUID respuestaId=UUID.fromString(json.readTree(respuesta.body()).get("id").asText());
+            assertThat(api("POST","/api/correctivas/acciones/"+accion+"/verificaciones",top,Map.of("solicitudId",UUID.randomUUID(),"respuestaId",respuestaId,"resultadoId",categoria,"observaciones","x")).statusCode())
+                .as("el operador no emite verificación municipal").isEqualTo(403);
+            assertThat(contar("SELECT count(*) FROM verificacion_correctiva WHERE accion_id=?",accion)).as("la respuesta no verifica nada").isZero();
+            assertThat(json.readTree(api("GET","/api/empresa/correctivas/"+accion,top,null).body()).get("verificaciones").size()).isZero();
             assertThat(api("POST","/api/correctivas/acciones/"+accion+"/verificaciones",tfc,Map.of("solicitudId",UUID.randomUUID(),"respuestaId",respuestaId,"resultadoId",categoriaRetirada,"observaciones","x")).statusCode())
                 .as("categoría retirada no aprobada").isEqualTo(409);
             assertThat(api("POST","/api/correctivas/acciones/"+accion+"/verificaciones",tfc,Map.of("solicitudId",UUID.randomUUID(),"respuestaId",respuestaId,"resultadoId",UUID.randomUUID(),"observaciones","x")).statusCode())

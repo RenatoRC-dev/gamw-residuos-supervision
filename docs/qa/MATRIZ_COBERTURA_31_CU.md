@@ -16,8 +16,8 @@ Fuentes: `docs/context/GAMW_BASELINE_FUNCIONAL_CU01_CU31_v1_0.md` (actores), `do
 
 | Estado | Cantidad | CU |
 |---|---|---|
-| IMPLEMENTED | **2** | 01, 29 |
-| PARTIAL | **25** | 02, 03, 04, 05, 06, 07, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28 |
+| IMPLEMENTED | **3** | 01, 22, 29 (22 desde el corte `CU-22 A4`, ver §10) |
+| PARTIAL | **24** | 02, 03, 04, 05, 06, 07, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 26, 27, 28 |
 | INSTITUTIONALLY BLOCKED | **3** | 08, 25, 31 (31: código listo, acceso denegado por D1) |
 | NOT IMPLEMENTED | **1** | 30 |
 
@@ -109,6 +109,23 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
    Alcance: registro textual (sin anexos), idempotencia, autorización `RECLAMO_REGISTRAR/CONSULTAR`, relación a jornada; IT HTTP + E2E; sin categorías de valoración (CU-27 queda bloqueado por catálogo).
 
 **Siguiente CU recomendado: CU-22** (cierre del flujo correctivo con el actor A4 en la interfaz real; esfuerzo S, sin bloqueo institucional). Fuera de alcance explícito: CU-08, CU-25, CU-30, emisión oficial CU-21/23, habilitar CU-31.
+
+## 10. Actualización — corte CU-22 (respuesta A4 por la UI)
+
+`FlujoMunicipalNavegadorIT` (1/1, local) + `apps/web/e2e/flujo-correctivo.test.mjs` fase `1b`. Cadena verificada con JWT y concesiones de periodo (RF-19):
+
+| Criterio (baseline CU-22 / reglas) | Prueba |
+|---|---|
+| A3 solicita la acción desde un antecedente (UI) | E2E fase 1 |
+| A4 ve **solo** acciones de su periodo concedido; otro operador/periodo ve lista vacía y 403 por REST | E2E fase 1b (2 opciones vs 1) + `FlujoMunicipalNavegadorIT` |
+| A4 inspecciona y responde **por la UI**; campos obligatorios sin envío; hora de Bolivia | E2E fase 1b (`checkValidity`, 0 peticiones con formulario incompleto) |
+| Envío fallido + reintento = **misma solicitud**, una sola respuesta | E2E fase 1b (cuerpos idénticos) + DB `count=1` |
+| Solicitud original, autor y fecha conservados; autor de la respuesta = operador | DB: `accion_correctiva` sin cambios; `usuario_id`; `registrada_en ≥ comunicada_en` |
+| Contenido distinto con la misma solicitud → 409; fecha futura / observaciones vacías / campo de identidad → 400, sin registros | REST en la IT |
+| La respuesta **no** es verificación ni cumplimiento; A4 no puede verificar (403) ni ve formulario de verificación | E2E (sin botón ni encabezado de verificación) + REST 403 + DB `verificacion_correctiva=0` |
+| A3 verifica luego en la UI con categoría **sintética** | E2E fase 2 |
+
+No hay defectos de producción confirmados en este corte. **No** se inventaron plazos, estados, adjuntos ni el procedimiento PENDING-07; la categoría de verificación es fixture de prueba. Pendiente institucional: estados/plazos de CU-22, adjuntos nuevos, rectificación, catálogo oficial (CU-23). Acuerdo GAMW: **PENDING** (solo verificación técnica).
 
 ## 9. Distinción final
 

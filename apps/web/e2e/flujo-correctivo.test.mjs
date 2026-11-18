@@ -37,7 +37,79 @@ test(`Flujo correctivo (fase ${process.env.GAMW_WEB_TEST_FASE}): solicitud y ver
     await page.getByLabel('Jornada').selectOption(jornada);
     await page.getByRole('heading', { name: 'Incidencias operativas' }).waitFor();
   };
+  const salir = async () => {
+    await page.getByRole('link', { name: 'Inicio', exact: true }).click();
+    await page.getByRole('link', { name: 'Autenticarse en GAMW' }).click();
+    await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+    await page.getByRole('button', { name: 'Ingresar', exact: true }).waitFor();
+  };
+  const abrirAtencionEmpresarial = async () => {
+    await page.getByRole('link', { name: 'Inicio', exact: true }).click();
+    await page.getByRole('link', { name: 'Atender correctivas de periodos autorizados' }).click();
+    await page.getByRole('heading', { name: 'Atención empresarial de acciones correctivas' }).waitFor();
+  };
+  // Número de opciones del selector de acciones (incluye el marcador «Seleccione»), tras terminar la consulta de acciones autorizadas.
+  const opcionesAcciones = async () => {
+    await page.getByText('Consultando acciones autorizadas…').waitFor({ state: 'detached' });
+    return page.evaluate(() => {
+      const etiqueta = [...document.querySelectorAll('label')].find(l => l.textContent.startsWith('Acción correctiva'));
+      return etiqueta.querySelector('select').options.length;
+    });
+  };
+  // CU-22 (actor A4): la atención se registra por la INTERFAZ real con JWT y concesión de periodo.
+  const operadorA4 = async () => {
+    const operador = process.env.GAMW_WEB_TEST_OPERADOR, otro = process.env.GAMW_WEB_TEST_OPERADOR_OTRO;
+    assert.ok(operador?.startsWith('flujo-op-') && otro?.startsWith('flujo-opb-'));
+    const cuerpos = [];
+    page.on('request', r => { if (r.method() === 'POST' && r.url().includes('/api/empresa/correctivas/') && r.url().endsWith('/respuestas')) cuerpos.push(r.postData()); });
+    await ingresar(operador);
+    await abrirAtencionEmpresarial();
+    assert.equal(await opcionesAcciones(), 2, 'Solo la acción del periodo concedido (más el marcador).');
+    await page.getByLabel('Acción correctiva').selectOption({ index: 1 });
+    await page.getByRole('heading', { name: 'Solicitud municipal' }).waitFor();
+    await page.locator('section p', { hasText: 'Retirar el bloqueo y comunicar la evidencia de atención.' }).waitFor(); // solicitud original conservada
+    await page.getByText('Sin respuesta empresarial registrada.').waitFor();
+    await page.getByText('Sin verificación; la atención no se declara validada automáticamente.').waitFor();
+    // El operador NO tiene ninguna superficie de verificación municipal.
+    assert.equal(await page.getByRole('button', { name: /Registrar verificación/ }).count(), 0);
+    assert.equal(await page.getByRole('heading', { name: /verificación municipal/i }).count(), 0);
+    // Campos obligatorios: sin completar no se envía nada.
+    const formulario = page.locator('form').filter({ has: page.getByRole('heading', { name: 'Comunicar atención empresarial' }) });
+    await page.getByRole('button', { name: 'Registrar atención', exact: true }).click();
+    assert.equal(cuerpos.length, 0, 'Formulario incompleto: ninguna petición.');
+    assert.equal(await formulario.evaluate(f => f.checkValidity()), false);
+    // Fecha/hora en horario de Bolivia (UTC−04:00), no futura.
+    const bolivia = new Date(Date.now() - 4 * 3600e3 - 5 * 60e3).toISOString().slice(0, 19);
+    await page.getByLabel('Fecha/hora de comunicación (Bolivia UTC−04:00)').fill(bolivia);
+    await page.getByLabel('Observaciones y atención realizada').fill('Atención sintética: bloqueo retirado y contenedor liberado.');
+    await page.getByLabel('Confirmo la respuesta empresarial, sin sustituir la solicitud ni emitir una verificación municipal.').check();
+    // Primer envío con fallo de transporte (respuesta incierta): el reintento debe reutilizar la MISMA solicitud (idempotencia).
+    await page.route('**/api/empresa/correctivas/*/respuestas', route => route.abort('failed'), { times: 1 });
+    await page.getByRole('button', { name: 'Registrar atención', exact: true }).click();
+    await page.getByRole('button', { name: 'Reintentar misma respuesta' }).waitFor();
+    await page.getByText('Solicitud fijada para reintento idempotente', { exact: false }).waitFor();
+    await page.getByRole('button', { name: 'Reintentar misma respuesta' }).click();
+    await page.getByText('Respuesta registrada. No equivale a verificación municipal.').waitFor();
+    await page.getByRole('heading', { name: /^Respuesta / }).waitFor();
+    assert.equal(cuerpos.length, 2, 'Un envío fallido y un reintento.');
+    assert.equal(cuerpos[0], cuerpos[1], 'El reintento reenvía exactamente la misma solicitud.');
+    await page.getByText('Sin verificación; la atención no se declara validada automáticamente.').waitFor(); // la respuesta no es verificación
+    assert.equal(await page.getByRole('button', { name: /Registrar verificación/ }).count(), 0);
+    // Otro operador (otro periodo/empresa): no ve acciones ajenas.
+    await salir();
+    await ingresar(otro);
+    await abrirAtencionEmpresarial();
+    assert.equal(await opcionesAcciones(), 1, 'Solo el marcador: ninguna acción de otro periodo.');
+    await page.getByText('No hay acciones disponibles en los periodos expresamente concedidos.').waitFor();
+  };
   try {
+    if (fase === '1b') {
+      await operadorA4();
+      assert.deepEqual(errores, [], 'Sin errores de página.');
+      assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
+      assert.equal((await contexto.cookies()).length, 0);
+      return;
+    }
     await ingresar(fiscal);
     // `ingresar` deja la pantalla de acceso; el enlace "Inicio" existe en ella.
     await abrirCorrectivas();
