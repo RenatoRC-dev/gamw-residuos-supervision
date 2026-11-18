@@ -14,7 +14,7 @@ on:
       - .github/workflows/android-emulator-qa.yml
       - .github/scripts/android_emulador_qa.sh
       - apps/mobile/qa_emulador/**
-      - apps/mobile/analysis_options_qa_emulador.yaml
+      - apps/mobile/analysis_options.yaml
       - backend/src/test/java/bo/gob/warnes/gamw/residuos/modules/ejecucion/jornadas/api/AndroidEmuladorQaIT.java
 
 permissions:
@@ -62,10 +62,9 @@ jobs:
       - name: Dependencias móviles
         working-directory: apps/mobile
         run: flutter pub get --enforce-lockfile
-      - name: Análisis y compilación de la QA de emulador (no excluida aquí)
+      - name: Análisis estático de todo el proyecto móvil (incluye qa_emulador/, sin exclusiones)
         working-directory: apps/mobile
-        # Errores y advertencias fallan el paso; las sugerencias de estilo (info) no. Se analiza qa_emulador/ con opciones sin exclusión.
-        run: dart analyze --options=analysis_options_qa_emulador.yaml qa_emulador
+        run: flutter analyze --no-pub
       - name: QA en emulador (API 34, x86_64)
         uses: reactivecircus/android-emulator-runner@v2
         with:
