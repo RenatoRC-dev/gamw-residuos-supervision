@@ -1,5 +1,9 @@
-import { expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { apiJornadas as api } from './jornadas';
+
+// Contrato del modo local de desarrollo: solo con Vite dev, loopback y VITE_GAMW_DESARROLLO_LOCAL=true explícito (sin sesión institucional).
+beforeEach(() => { vi.stubEnv('VITE_GAMW_DESARROLLO_LOCAL', 'true'); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 it('programa con periodo y versión, sin empresa o recursos directos', async () => {
   const datos = { periodoServicioId: 'periodo', rutaVersionId: 'version', inicioProgramado: '2026-05-10T12:00:00Z', finProgramado: null };

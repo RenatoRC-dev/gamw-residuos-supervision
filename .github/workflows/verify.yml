@@ -9,6 +9,40 @@ permissions:
   contents: read
 
 jobs:
+  # H-04: integración real contra PostgreSQL/PostGIS EFÍMERO. Cada JVM crea su propio clúster (initdb en un directorio temporal,
+  # puerto local, roles y contraseñas aleatorias, sin DB_* ni .env ni bases existentes). No hay credenciales ni destinos externos.
+  backend-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GAMW_PG_BIN: /usr/lib/postgresql/16/bin
+      GAMW_PG_VERSION_PREFIX: '16.'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: PostgreSQL 16 y PostGIS (solo binarios; el clúster lo crea la prueba)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-16 postgresql-16-postgis-3
+          sudo systemctl stop postgresql || true
+      - name: Integración esencial (Flyway V1–V19, seguridad, cadena operativa, historial, bitácora)
+        working-directory: backend
+        run: >
+          sh ./mvnw --batch-mode --no-transfer-progress -Ppostgres-integration verify
+          -Dit.test=FlywayBaselineIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT
+      - name: Informes de integración
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failsafe-reports
+          path: backend/target/failsafe-reports
+          if-no-files-found: ignore
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 25

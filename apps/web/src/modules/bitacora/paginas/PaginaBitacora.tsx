@@ -106,10 +106,10 @@ function DetalleEventoBitacora({ id, volver }: { id: string; volver: () => void 
         <dt>Actor</dt><dd>{datos.evento.atribucion === 'USUARIO_AUTENTICADO' ? (datos.evento.actorNombreUsuario ?? datos.evento.actorUsuarioId) : ATRIBUCION[datos.evento.atribucion]}</dd>
         <dt>Entidad afectada</dt><dd>{datos.evento.entidadTipo} · {datos.evento.entidadId}</dd>
         <dt>Fuente</dt><dd>{datos.evento.fuente}</dd>
-        <dt>Motivo registrado</dt><dd>{datos.motivo ?? '—'}</dd>
+        <dt>Motivo registrado (texto libre: no se muestra)</dt><dd>{datos.motivoRegistrado ? `Sí (${datos.motivoLongitud} caracteres)` : 'No'}</dd>
       </dl>
-      <h3>Estado anterior (campos protegidos ocultos)</h3><pre>{datos.anterior == null ? 'No conservado por la fuente.' : JSON.stringify(datos.anterior, null, 2)}</pre>
-      <h3>Estado posterior (campos protegidos ocultos)</h3><pre>{datos.posterior == null ? 'No conservado por la fuente.' : JSON.stringify(datos.posterior, null, 2)}</pre>
+      <h3>Estado anterior (solo campos permitidos; «camposOmitidos» cuenta los no mostrados)</h3><pre>{datos.anterior == null ? 'No conservado por la fuente.' : JSON.stringify(datos.anterior, null, 2)}</pre>
+      <h3>Estado posterior (solo campos permitidos)</h3><pre>{datos.posterior == null ? 'No conservado por la fuente.' : JSON.stringify(datos.posterior, null, 2)}</pre>
       <ul>{datos.notas.map(n => <li key={n}>{n}</li>)}</ul>
     </>}
   </section>;

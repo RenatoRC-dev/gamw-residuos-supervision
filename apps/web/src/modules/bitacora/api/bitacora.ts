@@ -6,7 +6,7 @@ export interface EventoBitacora {
   actorUsuarioId: string | null; actorNombreUsuario: string | null; entidadTipo: string; entidadId: string;
 }
 export interface PaginaBitacora { eventos: EventoBitacora[]; siguiente: number | null }
-export interface DetalleEvento { evento: EventoBitacora; motivo: string | null; anterior: unknown; posterior: unknown; notas: string[] }
+export interface DetalleEvento { evento: EventoBitacora; motivoRegistrado: boolean; motivoLongitud: number; anterior: unknown; posterior: unknown; notas: string[] }
 export interface FiltrosBitacora { desde: string; hasta: string; actorId: string; accion: string; entidadTipo: string; entidadId: string }
 export const ENTIDADES = ['USUARIO', 'JORNADA', 'PERIODO_SERVICIO'] as const;
 

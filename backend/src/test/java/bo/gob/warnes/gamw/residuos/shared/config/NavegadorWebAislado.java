@@ -25,6 +25,9 @@ public final class NavegadorWebAislado {
                 .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
         vite.environment().put("GAMW_WEB_INTEGRACION", "true");
         vite.environment().put("VITE_API_BASE_URL", "/api");
+        // Estas pruebas operan los módulos locales de desarrollo (perfil desarrollo-local del backend de prueba): el cliente web exige este
+        // opt-in explícito desde el endurecimiento H-02 (Vite dev + loopback + bandera). No es autenticación institucional.
+        vite.environment().put("VITE_GAMW_DESARROLLO_LOCAL", "true");
         vite.environment().put("BACKEND_PROXY_TARGET", "http://127.0.0.1:" + backend);
         Process servidor = vite.start();
         Process navegador = null;

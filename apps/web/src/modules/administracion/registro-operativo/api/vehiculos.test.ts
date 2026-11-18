@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiVehiculos as api } from './vehiculos';
+
+// Contrato del modo local de desarrollo: solo con Vite dev, loopback y VITE_GAMW_DESARROLLO_LOCAL=true explícito (sin sesión institucional).
+beforeEach(() => { vi.stubEnv('VITE_GAMW_DESARROLLO_LOCAL', 'true'); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe('contratos vehiculares CU-06', () => {
   it('envía placa como texto y capacidades separadas sin empresa ni conductor', async () => {

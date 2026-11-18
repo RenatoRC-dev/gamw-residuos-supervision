@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiRegistroOperativo as api } from './registroOperativo';
+
+// Contrato del modo local de desarrollo: solo con Vite dev, loopback y VITE_GAMW_DESARROLLO_LOCAL=true explícito (sin sesión institucional).
+beforeEach(() => { vi.stubEnv('VITE_GAMW_DESARROLLO_LOCAL', 'true'); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe('contratos del registro operativo', () => {
   it('conserva el CI como texto y los apellidos opcionales', async () => {

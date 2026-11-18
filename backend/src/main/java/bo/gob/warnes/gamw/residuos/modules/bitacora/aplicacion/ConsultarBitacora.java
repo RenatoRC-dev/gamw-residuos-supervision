@@ -31,7 +31,8 @@ public class ConsultarBitacora {
 
     public record Evento(String id,String fuente,Instant ocurridoEn,String accion,String atribucion,UUID actorUsuarioId,String actorNombreUsuario,String entidadTipo,UUID entidadId) { }
     public record Pagina(List<Evento> eventos,Integer siguiente) { }
-    public record Detalle(Evento evento,String motivo,Object anterior,Object posterior,List<String> notas) { }
+    /** El motivo es texto libre: nunca se devuelve su contenido (solo si existe y su longitud). anterior/posterior son proyecciones por lista permitida. */
+    public record Detalle(Evento evento,boolean motivoRegistrado,int motivoLongitud,Object anterior,Object posterior,List<String> notas) { }
 
     public Pagina buscar(UsuarioAutenticado actor,LocalDate desde,LocalDate hasta,UUID actorId,String accion,String entidadTipo,UUID entidadId,int desplazamiento) {
         permisos.exigir(actor);
@@ -53,14 +54,15 @@ public class ConsultarBitacora {
         var notas = new ArrayList<String>();
         if (f.actorUsuarioId() == null) notas.add("Evento no atribuible a un usuario autenticado: se originó en provisión local/técnica. No se infiere identidad.");
         if (f.anterior() == null && f.posterior() == null) notas.add("La fuente no conserva estados anterior/posterior para este tipo de evento.");
-        notas.add("Los campos secretos y datos personales protegidos se ocultan; esta consulta no modifica ni elimina registros.");
-        return new Detalle(evento(f),RedactorSensible.texto(f.motivo()),valor(f.anterior()),valor(f.posterior()),notas);
+        notas.add("Solo se muestran campos de una lista permitida; el texto libre (p. ej. el motivo) y los datos personales no se devuelven. Esta consulta no modifica ni elimina registros.");
+        String motivo = f.motivo();
+        return new Detalle(evento(f),motivo != null && !motivo.isBlank(),motivo == null ? 0 : motivo.length(),valor(f.anterior()),valor(f.posterior()),notas);
     }
 
     private Object valor(String texto) {
         if (texto == null) return null;
-        try { return RedactorSensible.redactar(json.readValue(texto,Object.class)); }
-        catch (RuntimeException e) { return RedactorSensible.OCULTO; } // ante un formato inesperado se prefiere no revelar
+        try { return ProyeccionAuditoria.proyectar(json.readValue(texto,Object.class)); }
+        catch (RuntimeException e) { return Map.of("camposOmitidos",-1); } // formato inesperado: fallo cerrado, nada se revela
     }
     private Evento evento(Fila f) {
         String atribucion = f.actorUsuarioId() != null ? "USUARIO_AUTENTICADO" : f.origenLocal() ? "OPERADOR_LOCAL_NO_AUTENTICADO" : "NO_ATRIBUIBLE";

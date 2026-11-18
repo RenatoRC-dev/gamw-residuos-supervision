@@ -38,18 +38,25 @@ class IdentidadPostgresIT {
         return new JdbcTemplate(new SingleConnectionDataSource(conexion, true));
     }
 
-    @Test void instalaV1AV9YValidaSinCambiosAdicionales() {
+    /** Cantidad de migraciones versionadas publicadas (V1..Vn); evita que la prueba envejezca con cada migración aditiva. */
+    private static int migracionesPublicadas() throws java.io.IOException {
+        return new org.springframework.core.io.support.PathMatchingResourcePatternResolver().getResources("classpath:db/migration/V*__*.sql").length;
+    }
+
+    @Test void instalaTodasLasMigracionesPublicadasYValidaSinCambiosAdicionales() throws Exception {
         var entorno = PostgresV8Aislado.obtener();
-        assertThat(entorno.instalacionLimpia.migrationsExecuted).isEqualTo(9);
+        int total = migracionesPublicadas();
+        assertThat(total).isGreaterThanOrEqualTo(19);
+        assertThat(entorno.instalacionLimpia.migrationsExecuted).isEqualTo(total);
         var flyway = entorno.flyway(false, null);
-        assertThat(flyway.info().applied()).hasSize(9);
+        assertThat(flyway.info().applied()).hasSize(total);
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(jdbc.queryForObject("SELECT postgis_lib_version()", String.class)).startsWith("3.");
-        assertThat(jdbc.queryForObject("SELECT version()", String.class)).contains("PostgreSQL 16.6");
+        assertThat(jdbc.queryForObject("SELECT version()", String.class)).contains("PostgreSQL 16.");
     }
 
-    @Test void actualizaV7AV8AV9SinReescribirEvidenciaNiHistoriaFlyway() throws Exception {
+    @Test void actualizaDesdeV7HastaLaUltimaSinReescribirEvidenciaNiHistoriaFlyway() throws Exception {
         var entorno = PostgresV8Aislado.obtener();
         assertThat(entorno.instalacionV7.migrationsExecuted).isEqualTo(7);
         try (var actualizacion = entorno.conexion(true)) {
@@ -64,12 +71,12 @@ class IdentidadPostgresIT {
             assertThat(v8.migrate().migrationsExecuted).isEqualTo(1);
             var evidenciaV8=sql.queryForList("SELECT * FROM evento_ejecucion_jornada ORDER BY tipo_evento");
             var flyway = entorno.flyway(true, null);
-            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(migracionesPublicadas() - 8); // V9..Vn tras V8
             assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
             assertThat(sql.queryForList("SELECT * FROM evento_ejecucion_jornada ORDER BY tipo_evento")).isEqualTo(evidenciaV8);
             assertThat(sql.queryForList("SELECT " + columnas + " FROM evento_ejecucion_jornada ORDER BY tipo_evento")).isEqualTo(evidencia);
             assertThat(sql.queryForObject("SELECT count(*) FROM evento_ejecucion_jornada WHERE usuario_id IS NULL", Integer.class)).isEqualTo(2);
-            assertThat(sql.queryForList("SELECT installed_rank,version,checksum,success,installed_on FROM flyway_schema_history WHERE version NOT IN ('8','9') ORDER BY installed_rank")).isEqualTo(historia);
+            assertThat(sql.queryForList("SELECT installed_rank,version,checksum,success,installed_on FROM flyway_schema_history WHERE CAST(version AS integer) < 8 ORDER BY installed_rank")).isEqualTo(historia);
             assertThat(sql.queryForList("SELECT * FROM usuario")).isEmpty();
             assertThat(flyway.migrate().migrationsExecuted).isZero();
             var repositorio = new bo.gob.warnes.gamw.residuos.modules.ejecucion.jornadas.persistencia.RepositorioEventosEjecucionPostgres(sql);

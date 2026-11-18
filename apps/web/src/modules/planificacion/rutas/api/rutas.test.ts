@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiRutas } from './rutas';
 import type { GeometriaLineString } from '../modelo/geometria';
+
+// Contrato del modo local de desarrollo: solo con Vite dev, loopback y VITE_GAMW_DESARROLLO_LOCAL=true explícito (sin sesión institucional).
+beforeEach(() => { vi.stubEnv('VITE_GAMW_DESARROLLO_LOCAL', 'true'); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe('transporte de rutas', () => {
   const geometria: GeometriaLineString = { type: 'LineString', coordinates: [[-10, 20], [-11, 21]] };

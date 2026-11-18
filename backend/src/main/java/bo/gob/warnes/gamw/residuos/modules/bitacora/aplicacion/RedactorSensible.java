@@ -3,7 +3,11 @@ package bo.gob.warnes.gamw.residuos.modules.bitacora.aplicacion;
 import java.util.*;
 import java.util.regex.Pattern;
 
-/** CU-31 E4/RN-CU-31-04: oculta secretos y datos personales protegidos antes de exponer cualquier detalle. */
+/**
+ * @deprecated Sin uso en la salida de CU-31 desde H-05: la redacción por patrones no es suficiente para texto libre. La salida usa
+ * {@link ProyeccionAuditoria} (lista permitida, fallo cerrado). Se conserva solo como defensa adicional para pruebas.
+ */
+@Deprecated
 public final class RedactorSensible {
     public static final String OCULTO = "[PROTEGIDO]";
     private static final Pattern CLAVE_SECRETA = Pattern.compile("(?i).*(contrasena|password|clave|hash|token|jwt|secret|credencial|authorization|bearer|cookie).*");

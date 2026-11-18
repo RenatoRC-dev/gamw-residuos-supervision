@@ -102,21 +102,39 @@ class BitacoraEventosIT extends IntegracionPostgresV8 {
 
     @Test void detalleOcultaSecretosYDatosPersonalesYDeclaraSusLimites() throws Exception {
         UUID a=usuario(),objetivo=usuario(); String t=token(a);
+        // Datos que NINGÚN patrón de credenciales reconocería: clave en texto libre, documento de identidad, campos desconocidos y anidados.
+        String claveLibre="Qwerty-Sint-9981",docLibre="DOC-SINT-4455667";
         String anterior=json.writeValueAsString(Map.of("cuenta",Map.of("nombreUsuario","visible-"+objetivo,"contrasenaHash",HASH_SECRETO,"nombres","Persona Real","ci","CI-SINT-7788",
-            "detalle",Map.of("tokenAcceso",JWT)),"activo",true));
-        String posterior=json.writeValueAsString(Map.of("nota","Authorization: Bearer "+JWT,"otro",HASH_SECRETO,"permiso","JORNADAS_CONSULTAR"));
-        UUID e=actuacion(a,objetivo,"CUENTA_ACTUALIZAR","Cambio con "+JWT+" incluido",anterior,posterior,1);
+            "observacion",docLibre,"detalle",Map.of("tokenAcceso",JWT,"anidado",Map.of("clave",claveLibre))),"activo",true,"comentario","la clave nueva es "+claveLibre));
+        String posterior=json.writeValueAsString(Map.of("nota","Authorization: Bearer "+JWT,"otro",HASH_SECRETO,"permiso","JORNADAS_CONSULTAR","permisoRaro","jornadas consultar con espacios"));
+        UUID e=actuacion(a,objetivo,"CUENTA_ACTUALIZAR","Cambio: la clave es "+claveLibre+" y el documento "+docLibre+" con "+JWT,anterior,posterior,1);
         var r=enviar("GET",BASE+"/ADM:"+e,t,null);
         assertThat(r.estado()).isEqualTo(200);
-        assertThat(r.cuerpo()).doesNotContain(HASH_SECRETO,JWT,"CI-SINT-7788","Persona Real","firmaSinteticaCU31");
+        assertThat(r.cuerpo()).doesNotContain(HASH_SECRETO,JWT,"CI-SINT-7788","Persona Real","firmaSinteticaCU31",claveLibre,docLibre,"jornadas consultar");
         var n=json.readTree(r.cuerpo());
-        assertThat(n.get("anterior").get("cuenta").get("contrasenaHash").asText()).isEqualTo("[PROTEGIDO]");
-        assertThat(n.get("anterior").get("cuenta").get("detalle").get("tokenAcceso").asText()).isEqualTo("[PROTEGIDO]");
+        // Lista permitida: solo campos conocidos con forma válida; el resto se cuenta, no se muestra.
         assertThat(n.get("anterior").get("cuenta").get("nombreUsuario").asText()).isEqualTo("visible-"+objetivo);
+        assertThat(n.get("anterior").get("activo").asBoolean()).isTrue();
+        assertThat(n.get("anterior").get("cuenta").has("contrasenaHash")).isFalse();
+        assertThat(n.get("anterior").get("cuenta").has("detalle")).isFalse();
+        assertThat(n.get("anterior").get("cuenta").get("camposOmitidos").asInt()).isEqualTo(5);
+        assertThat(n.get("anterior").get("camposOmitidos").asInt()).isEqualTo(1);
         assertThat(n.get("posterior").get("permiso").asText()).isEqualTo("JORNADAS_CONSULTAR");
+        assertThat(n.get("posterior").has("permisoRaro")).isFalse();
+        assertThat(n.get("posterior").get("camposOmitidos").asInt()).isEqualTo(3);
         assertThat(n.get("evento").get("atribucion").asText()).isEqualTo("USUARIO_AUTENTICADO");
         assertThat(n.get("evento").get("actorNombreUsuario").asText()).isEqualTo("bit-"+a);
-        assertThat(n.get("motivo").asText()).contains("Cambio con").doesNotContain("eyJ");
+        // El motivo es texto libre: no se devuelve su contenido, solo que existe.
+        assertThat(n.has("motivo")).isFalse();
+        assertThat(n.get("motivoRegistrado").asBoolean()).isTrue();
+        assertThat(n.get("motivoLongitud").asInt()).isGreaterThan(10);
+        // Un valor con forma inválida en un campo permitido se omite (fallo cerrado), no se limpia.
+        UUID e2=actuacion(a,objetivo,"CUENTA_ACTUALIZAR","m",json.writeValueAsString(Map.of("nombreUsuario","con espacios y clave "+claveLibre,"activo","true","permiso","jornadas")),"{}",1);
+        var n2=json.readTree(enviar("GET",BASE+"/ADM:"+e2,t,null).cuerpo());
+        assertThat(n2.get("anterior").has("nombreUsuario")).isFalse();
+        assertThat(n2.get("anterior").has("activo")).isFalse();
+        assertThat(n2.get("anterior").has("permiso")).isFalse();
+        assertThat(n2.get("anterior").get("camposOmitidos").asInt()).isEqualTo(3);
         // Ninguna respuesta de listado ni detalle expone hashes de las cuentas reales.
         String hashReal=jdbc.queryForObject("SELECT contrasena_hash FROM usuario WHERE id=?",String.class,a);
         assertThat(enviar("GET",BASE+"?entidadTipo=USUARIO&entidadId="+objetivo,t,null).cuerpo()).doesNotContain(hashReal);

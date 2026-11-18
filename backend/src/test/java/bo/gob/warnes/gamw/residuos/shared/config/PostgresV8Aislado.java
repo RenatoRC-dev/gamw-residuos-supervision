@@ -19,6 +19,8 @@ import org.flywaydb.core.api.output.MigrateResult;
 
 /** Solo tests: cada JVM crea su propio clúster. Nunca toma DB_*, .env o bases existentes. */
 public final class PostgresV8Aislado implements AutoCloseable {
+    private static final boolean WINDOWS = System.getProperty("os.name").startsWith("Windows");
+    private static final String VERSION = System.getenv().getOrDefault("GAMW_PG_VERSION_PREFIX", "16.6");
     private final Path bin = Path.of(System.getenv().getOrDefault("GAMW_PG_BIN", "C:/Program Files/PostgreSQL/16/bin"));
     private final Path raiz;
     private final Path datos;
@@ -41,16 +43,18 @@ public final class PostgresV8Aislado implements AutoCloseable {
     public static PostgresV8Aislado obtener() { return Instancia.VALOR; }
 
     private PostgresV8Aislado() throws Exception {
-        if (!System.getProperty("os.name").startsWith("Windows")) {
-            throw new IllegalStateException("Este aprovisionamiento requiere los binarios PostgreSQL 16.6 para Windows.");
+        // Por defecto: Windows con PostgreSQL 16.6 (desarrollo local). CI Linux: exige GAMW_PG_BIN explícito (binarios del runner, p. ej.
+        // PGDG con PostGIS) y puede relajar el prefijo de versión con GAMW_PG_VERSION_PREFIX=16. El clúster sigue siendo propio y efímero.
+        if (!WINDOWS && System.getenv("GAMW_PG_BIN") == null) {
+            throw new IllegalStateException("En sistemas no Windows defina GAMW_PG_BIN con los binarios de PostgreSQL 16 (initdb, pg_ctl, postgres).");
         }
         raiz = Files.createTempDirectory("gamw-v8-it-").toRealPath();
         datos = raiz.resolve("data");
         puerto = puertoDisponible();
         Files.writeString(raiz.resolve("instance.marker"), marca, StandardCharsets.UTF_8);
         try {
-            if (!ejecutar("postgres", "--version").contains("16.6")) {
-                throw new IllegalStateException("Se requiere PostgreSQL 16.6; no se utilizará otro servidor.");
+            if (!ejecutar("postgres", "--version").contains(VERSION)) {
+                throw new IllegalStateException("Se requiere PostgreSQL " + VERSION + "; no se utilizará otro servidor.");
             }
             ejecutar("initdb", "-D", datos.toString(), "-U", "gamw_bootstrap_it", "--auth-local=trust",
                     "--auth-host=trust", "--encoding=UTF8", "--locale=C");
@@ -65,7 +69,7 @@ public final class PostgresV8Aislado implements AutoCloseable {
                 verificarServidor(admin, "postgres");
                 try (var r = sql.executeQuery("SELECT current_setting('data_directory'), current_setting('listen_addresses'), current_setting('server_version')")) {
                     if (!r.next() || !datos.toRealPath().equals(Path.of(r.getString(1)).toRealPath())
-                            || !"127.0.0.1".equals(r.getString(2)) || !r.getString(3).startsWith("16.6")) {
+                            || !"127.0.0.1".equals(r.getString(2)) || !r.getString(3).startsWith(VERSION)) {
                         throw new IllegalStateException("El servidor nuevo no coincide con el clúster propio.");
                     }
                 }
@@ -145,7 +149,7 @@ public final class PostgresV8Aislado implements AutoCloseable {
 
     private String ejecutar(String herramienta, String... argumentos) throws Exception {
         var comando = new ArrayList<String>();
-        comando.add(bin.resolve(herramienta + ".exe").toString());
+        comando.add(bin.resolve(WINDOWS ? herramienta + ".exe" : herramienta).toString());
         comando.addAll(List.of(argumentos));
         var builder = new ProcessBuilder(comando).redirectErrorStream(true);
         for (String variable : List.of("PGHOST", "PGPORT", "PGUSER", "PGDATABASE", "PGPASSWORD", "PGPASSFILE", "PGSERVICE", "PGSERVICEFILE", "PGOPTIONS", "PGDATA")) {
@@ -159,7 +163,7 @@ public final class PostgresV8Aislado implements AutoCloseable {
             }
             if (proceso.exitValue() != 0) throw new IllegalStateException(herramienta + ": exit=" + proceso.exitValue() + "; salida: " + salida);
             var codificacionSalida = Charset.forName(
-                    System.getProperty("native.encoding", "windows-1252"));
+                    System.getProperty("native.encoding", WINDOWS ? "windows-1252" : "UTF-8"));
             return Files.readString(salida, codificacionSalida);
     }
 
