@@ -72,6 +72,7 @@ class _Backend extends ClienteBackend {
   bool sinRed=false;
   bool rechazarEnvios=false;
   int envios=0;
+  final enviadas=<String>[]; // método, ruta y token de cada envío de evidencia (no incluye lecturas GET)
   @override Future<Object?> solicitar(String metodo,String ruta,{Object? cuerpo,String? token}) async {
     if(ruta.endsWith('login')) {
       final nombre=(cuerpo! as Map<String,Object?>)['nombreUsuario'];
@@ -87,6 +88,7 @@ class _Backend extends ClienteBackend {
     // Consulta de solo lectura del estado de ejecución al seleccionar la asignación (GET): no es un envío de evidencia.
     if(metodo=='GET' && ruta.startsWith('mis-jornadas/$jornada/ejecucion')) return <String,dynamic>{'jornadaId':jornada};
     envios++;
+    enviadas.add('$metodo $ruta token=$token');
     if(rechazarEnvios) throw const ErrorBackend(401);
     final d=cuerpo! as Map<String,Object?>;
     return {...d,'jornadaId':jornada,'usuarioId':id,'tipoEvento':ruta.endsWith('inicio')?'INICIO':'FIN'};
@@ -123,13 +125,19 @@ void main() {
     await tester.tap(find.text('Registrar INICIO')); await tester.pumpAndSettle();
     expect(control,contains('iniciar'));
     await sesion.invalidar(sesion.actual!.token); await tester.pumpAndSettle();
+    // La transmisión automática puede enviar el INICIO mientras la sesión original aún era válida; tras expirar no se envía nada más.
+    final enviosTrasExpirar=(sesion.api as _Backend).envios;
+    expect(enviosTrasExpirar,lessThanOrEqualTo(1));
     expect(control, isNot(contains('detener')));
     expect((await almacen.contextoGpsActivo())!['usuario_id_captura'],_Backend.id);
     await tester.enterText(find.byType(TextField).first,'Otra cuenta');
     await tester.enterText(find.byType(TextField).last,'clave');
     await tester.tap(find.text('Ingresar')); await tester.pumpAndSettle();
     expect(control,contains('detener')); expect(await almacen.contextoGpsActivo(),isNull);
-    expect((sesion.api as _Backend).envios,0);
+    // Ni la sesión vencida ni la otra cuenta envían: ningún envío posterior a la expiración y todo envío previo usó el token de la cuenta de captura.
+    expect((sesion.api as _Backend).envios,enviosTrasExpirar);
+    expect((sesion.api as _Backend).enviadas.every((e)=>e.endsWith('token=${_Backend.id}')),isTrue,
+      reason:'Envíos: ${(sesion.api as _Backend).enviadas}');
     expect((await almacen.listar()).single.usuarioIdCaptura,_Backend.id);
     await tester.pumpWidget(const SizedBox.shrink());
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(canal,null);

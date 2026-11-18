@@ -34,9 +34,19 @@ jobs:
           sudo systemctl stop postgresql || true
       - name: Integración esencial (Flyway V1–V19, seguridad, cadena operativa, historial, bitácora)
         working-directory: backend
-        run: >
-          sh ./mvnw --batch-mode --no-transfer-progress -Ppostgres-integration verify
-          -Dit.test=FlywayBaselineIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT
+        # El resultado no se altera: falla si falla Maven. Solo se publica una anotación con las líneas de error para diagnóstico.
+        run: |
+          set +e
+          sh ./mvnw --batch-mode --no-transfer-progress -Ppostgres-integration verify \
+            -Dit.test=FlywayBaselineIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT \
+            > "$RUNNER_TEMP/mvn-it.log" 2>&1
+          codigo=$?
+          tail -n 400 "$RUNNER_TEMP/mvn-it.log"
+          if [ "$codigo" -ne 0 ]; then
+            resumen=$(grep -nE 'ERROR|FAIL|Tests run:|IllegalState|Caused by' "$RUNNER_TEMP/mvn-it.log" | head -40 | cut -c1-300 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Fallos de integracion::${resumen}"
+          fi
+          exit $codigo
       - name: Informes de integración
         if: always()
         uses: actions/upload-artifact@v4
