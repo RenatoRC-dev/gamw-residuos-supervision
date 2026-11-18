@@ -56,7 +56,14 @@ class GestorSesion extends ChangeNotifier {
 
   Future<void> restaurar() async {
     final revision = ++_revision;
-    final guardado = await almacen.leer();
+    String? guardado;
+    try { guardado = await almacen.leer(); }
+    on Object {
+      // Valor cifrado ilegible (p. ej. la clave Android ya no descifra la copia): se descarta SOLO esta copia de la sesión (nunca las claves
+      // ni la evidencia local) y la persona vuelve a autenticarse. No se bloquea el arranque ni la captura offline.
+      try { await almacen.borrar(); } on Object { /* se reintentará al cerrar sesión */ }
+      return;
+    }
     if (revision != _revision || guardado == null) return;
     SesionUsuario sesion;
     try { sesion = SesionUsuario.desde(jsonDecode(guardado) as Map<String, dynamic>); }

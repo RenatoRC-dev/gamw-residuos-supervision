@@ -38,6 +38,17 @@
 - **PENDING-05**: catálogo oficial de resultados de fiscalización, rectificación, evidencias mínimas.
 - Política de retención/eventos mínimos de bitácora; snapshots nominales históricos; reglas de CU-08/25/30.
 
+## 5b. Ampliación: flujo municipal en navegador real y almacén seguro móvil
+
+- **`FlujoMunicipalNavegadorIT` + `e2e/flujo-municipal.test.mjs`** (ejecutada localmente: 1/1; Playwright/Vite/backend/PostgreSQL aislados; REST real, sin respuestas de negocio simuladas):
+  el conductor ejecuta por la API real (INICIO, GPS desordenado con hueco de ~5 min, reintento duplicado idempotente, FIN) y un fiscalizador recorre
+  trayectoria → expediente → historial en el navegador. Verifica: orden por captura, coordenadas [lon,lat], hueco temporal real, muestras NO unidas por
+  defecto y rótulo de «trazos inferidos» al unirlas, expediente con INICIO/FIN/GPS, referencias «acceso no permitido» sin permiso propio, historial
+  con recuento solo con permiso, ausencia de veredicto (sin «cumple/incumple/sanción/multa»), ningún dictamen creado, y denegaciones de una cuenta
+  sin concesiones en fiscalización, historial y trayectoria; sin localStorage/cookies. No está en el job de CI (requiere Node/Playwright).
+  Cubre aspectos de CU-13, CU-16, CU-21 (lectura/denegación) y CU-29; los pasos de incidencia → acción correctiva → verificación quedan cubiertos por las IT HTTP existentes, no por navegador.
+- **FlutterSecureStorage (decrypt):** la causa de los errores observados en la corrida del emulador **no se pudo confirmar** (los registros del emulador no son accesibles desde esta sesión). El código tenía un defecto real de resiliencia: una copia cifrada ilegible hacía fallar `restaurar()` y saltaba la carga de evidencia local/transmisión al arrancar. Corregido (`GestorSesion.restaurar`: descarta solo esa copia, nunca claves ni SQLite) con prueba `sesion_almacen_ilegible_test.dart` (validada por CI Flutter, no ejecutada localmente por el guard). No hay evidencia de pérdida de seguridad; `resetOnError:false` se mantiene.
+
 ## 6. Distinción
 
 Todo lo anterior es **verificación técnica** con datos sintéticos. Ningún CU queda **aceptado institucionalmente**.
