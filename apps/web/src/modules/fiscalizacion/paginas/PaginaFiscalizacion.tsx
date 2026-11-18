@@ -88,7 +88,8 @@ function Expediente({ token, jornada, vencer }: { token: string; jornada: string
     {cargando && <p role="status">Consultando expediente…</p>}{error && <p role="alert">{error}</p>}{aviso && <p role="status">{aviso}</p>}
     {datos && <>
       <Contexto datos={datos.contexto} /><p>{datos.limitaciones}</p>
-      <p><Link to={`/correctivas?jornada=${jornada}`}>Incidencias y actuaciones correctivas (permiso independiente)</Link></p>
+      <h2>Otras referencias de la jornada (permiso propio de cada módulo)</h2>
+      <ul>{datos.referencias.map(r => <li key={r.modulo}><Link to={r.ruta}>{r.modulo}</Link> — <strong>{r.estado === 'ACCESO_NO_PERMITIDO' ? 'Acceso no permitido (se desconoce si existen)' : r.estado === 'CON_REGISTROS' ? `Con registros (${r.cantidad})` : 'Sin registros'}</strong>. {r.nota}</li>)}</ul>
       <h2>GPS recibido: evidencia técnica, no dictamen</h2>
       <p>La cantidad recibida no informa cuántos registros siguen pendientes en teléfonos. No se inventan muestras ni cumplimiento.</p>
       {avisoMapa && <p role="status">{avisoMapa}</p>}

@@ -27,9 +27,11 @@ public class GestionarFiscalizacion {
     private final RepositorioContextoTrayectoria jornadas;
     private final RepositorioRuta rutas;
     private final ConsultarSeguimientoGps gps;
+    private final bo.gob.warnes.gamw.residuos.modules.historial.persistencia.RepositorioHistorialServicio referencias; // solo conteos de lectura
     public GestionarFiscalizacion(RepositorioFiscalizacion repo,AutorizacionMunicipal permisos,PoliticaEvidenciasCampo politica,
-            ObjectMapper json,RepositorioContextoTrayectoria jornadas,RepositorioRuta rutas,ConsultarSeguimientoGps gps) {
-        this.repo=repo; this.permisos=permisos; this.politica=politica; this.json=json; this.jornadas=jornadas; this.rutas=rutas; this.gps=gps;
+            ObjectMapper json,RepositorioContextoTrayectoria jornadas,RepositorioRuta rutas,ConsultarSeguimientoGps gps,
+            bo.gob.warnes.gamw.residuos.modules.historial.persistencia.RepositorioHistorialServicio referencias) {
+        this.repo=repo; this.permisos=permisos; this.politica=politica; this.json=json; this.jornadas=jornadas; this.rutas=rutas; this.gps=gps; this.referencias=referencias;
     }
     public record Adjunto(String origen,String descripcion,Instant capturadaEn) { }
     public record InspeccionEntrada(UUID solicitudId,Instant realizadaEn,String lugarDescripcion,Double latitud,Double longitud,
@@ -39,9 +41,16 @@ public class GestionarFiscalizacion {
     public record DecisionEntrada(UUID solicitudId,UUID resultadoId,String observaciones,List<UUID> inspeccionesReferenciadas) {
         @JsonAnySetter public void desconocido(String campo,Object valor) { throw new IllegalArgumentException("Campo de fiscalización no permitido."); }
     }
+    /** estado: CON_REGISTROS | SIN_REGISTROS | ACCESO_NO_PERMITIDO. La cantidad solo existe con el permiso propio del módulo; no es evidencia de cumplimiento. */
+    public record Referencia(String modulo,String ruta,String estado,Integer cantidad,String nota) { }
     public record Expediente(JsonNode contexto,List<JsonNode> inspecciones,JsonNode fiscalizacion,
             List<RepositorioFiscalizacion.Categoria> resultadosHabilitados,PoliticaEvidenciasCampo.Vista politicaEvidencias,String limitaciones,
-            boolean puedeRegistrarInspeccion,boolean puedeEmitirResultado) { }
+            boolean puedeRegistrarInspeccion,boolean puedeEmitirResultado,List<Referencia> referencias) { }
+    private Referencia referencia(UsuarioAutenticado a,String modulo,String permiso,String ruta,java.util.function.IntSupplier contar) {
+        if(!permisos.tiene(a,permiso)) return new Referencia(modulo,ruta,"ACCESO_NO_PERMITIDO",null,"Sin el permiso propio de este módulo no se sabe si existen registros; no es ausencia ni incumplimiento.");
+        int n=contar.getAsInt();
+        return new Referencia(modulo,ruta,n>0?"CON_REGISTROS":"SIN_REGISTROS",n,n>0?"Consulte el contenido en su módulo; no implica cumplimiento ni incumplimiento.":"Sin registros: ausencia de información, no evidencia negativa.");
+    }
     public record ListaJornadas(List<RepositorioContextoTrayectoria.Resumen> jornadas,Integer siguiente) { }
     public ListaJornadas listar(UsuarioAutenticado a,int desde) {
         permisos.exigirConsultaFiscalizacion(a);
@@ -55,8 +64,11 @@ public class GestionarFiscalizacion {
         String contexto=repo.antecedentes(jornada,Instant.now(),false).orElseThrow(()->error(HttpStatus.NOT_FOUND,"Jornada no encontrada."));
         return new Expediente(json.readTree(contexto),repo.inspecciones(jornada).stream().map(json::readTree).toList(),
             repo.fiscalizacion(jornada).map(json::readTree).orElse(null),repo.categorias(),politica.vista(),
-            "Incidencias, reclamos y acciones correctivas aún no integrados; ausencia de GPS no es evidencia de incumplimiento. Correcciones y anexos posteriores no habilitados.",
-            autorizado(()->permisos.exigirRegistroInspeccion(a)),autorizado(()->permisos.exigirEmisionFiscalizacion(a)));
+            "Ausencia de GPS o de otras evidencias no es evidencia de incumplimiento; el GPS no determina cumplimiento. Correcciones y anexos posteriores no habilitados.",
+            autorizado(()->permisos.exigirRegistroInspeccion(a)),autorizado(()->permisos.exigirEmisionFiscalizacion(a)),
+            List.of(referencia(a,"Incidencias operativas","CORRECTIVA_CONSULTAR","/correctivas?jornada="+jornada,()->referencias.contarReferencias("incidencia_operativa",jornada)),
+                referencia(a,"Acciones correctivas","CORRECTIVA_CONSULTAR","/correctivas?jornada="+jornada,()->referencias.contarReferencias("accion_correctiva",jornada)),
+                referencia(a,"Reclamos vinculados (directos o por relación)","RECLAMO_CONSULTAR","/reclamos",()->referencias.contarReclamos(jornada))));
     }
     private boolean autorizado(Runnable comprobacion) {
         try { comprobacion.run(); return true; } catch(org.springframework.security.access.AccessDeniedException error) { return false; }

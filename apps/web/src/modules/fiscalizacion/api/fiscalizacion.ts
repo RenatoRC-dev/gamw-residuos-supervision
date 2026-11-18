@@ -23,8 +23,9 @@ export interface DecisionFiscal {
   resultado: CategoriaFiscal; antecedentes: ContextoFiscal; inspeccionesReferenciadas: string[];
   posicionesNoReferenciadas: number; inspeccionesPosteriores: number;
 }
+export interface ReferenciaExpediente { modulo: string; ruta: string; estado: 'CON_REGISTROS' | 'SIN_REGISTROS' | 'ACCESO_NO_PERMITIDO'; cantidad: number | null; nota: string }
 export interface ExpedienteFiscal {
-  puedeRegistrarInspeccion: boolean; puedeEmitirResultado: boolean;
+  puedeRegistrarInspeccion: boolean; puedeEmitirResultado: boolean; referencias: ReferenciaExpediente[];
   contexto: ContextoFiscal; inspecciones: InspeccionCampo[]; fiscalizacion: DecisionFiscal | null;
   resultadosHabilitados: CategoriaFiscal[]; limitaciones: string;
   politicaEvidencias: { fotografiasHabilitadas: boolean; referenciaPolitica: string; maximoArchivos: number; maximoBytes: number; formatos: string[] };
