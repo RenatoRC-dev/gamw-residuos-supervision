@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import '../api/cliente_backend.dart';
 import 'almacen_sesion_seguro.dart';
 
@@ -13,6 +14,17 @@ class SesionUsuario {
     'usuarioId': usuarioId, 'personaNaturalId': personaNaturalId, 'nombreUsuario': nombreUsuario};
   factory SesionUsuario.desde(Map<String, dynamic> d) => SesionUsuario(d['tokenAcceso'] as String,
     DateTime.parse(d['expiraEn'] as String).toUtc(), d['usuarioId'] as String, d['personaNaturalId'] as String, d['nombreUsuario'] as String);
+}
+
+/// Indica si el error confirma que el valor cifrado no puede descifrarse (clave de Android invalidada o contenido corrupto).
+/// Se reconoce por las excepciones criptográficas de la plataforma; un fallo genérico NO cuenta como confirmación.
+@visibleForTesting
+bool copiaCifradaIlegible(Object error) {
+  if (error is! PlatformException) return false;
+  final texto = '${error.code} ${error.message} ${error.details}'.toLowerCase();
+  return const ['badpaddingexception', 'aeadbadtagexception', 'illegalblocksizeexception', 'invalidkeyexception',
+    'keypermanentlyinvalidatedexception', 'unrecoverablekeyexception', 'invalid_keyexception', 'failed to unwrap key']
+      .any(texto.contains);
 }
 
 class GestorSesion extends ChangeNotifier {
@@ -58,10 +70,16 @@ class GestorSesion extends ChangeNotifier {
     final revision = ++_revision;
     String? guardado;
     try { guardado = await almacen.leer(); }
-    on Object {
-      // Valor cifrado ilegible (p. ej. la clave Android ya no descifra la copia): se descarta SOLO esta copia de la sesión (nunca las claves
-      // ni la evidencia local) y la persona vuelve a autenticarse. No se bloquea el arranque ni la captura offline.
-      try { await almacen.borrar(); } on Object { /* se reintentará al cerrar sesión */ }
+    on Object catch (error) {
+      // Una restauración obsoleta (hubo un inicio de sesión o cierre posterior) nunca toca el almacén.
+      if (revision != _revision) return;
+      // Solo una copia CONFIRMADA como criptográficamente ilegible se descarta, y únicamente esa copia (nunca las claves ni la evidencia local).
+      // Cualquier otro fallo (almacenamiento ocupado, canal de plataforma, tiempo) es transitorio: no se borra nada y se reintentará.
+      if (copiaCifradaIlegible(error)) {
+        try {
+          await _persistir(() async { if (revision == _revision) await almacen.borrar(); }); // en orden de escritura y revalidando la revisión
+        } on Object { /* se reintentará al cerrar sesión */ }
+      }
       return;
     }
     if (revision != _revision || guardado == null) return;

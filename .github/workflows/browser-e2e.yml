@@ -1,0 +1,88 @@
+name: Browser E2E (isolated)
+
+# E2E con navegador real (Playwright/Chromium), Vite y backend REST sobre PostgreSQL/PostGIS EFÍMERO. Workflow separado de verify.yml para que
+# un fallo de infraestructura del navegador no altere el CI estándar. Solo datos y credenciales sintéticos; ninguna base ni servicio externo.
+# NO es aceptación institucional ni QA física.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/gamw-checkpoint-fiscalizacion-20261109
+    paths:
+      - .github/workflows/browser-e2e.yml
+      - apps/web/**
+      - backend/src/**
+      - backend/pom.xml
+
+permissions:
+  contents: read
+
+jobs:
+  browser-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      GAMW_PG_BIN: /usr/lib/postgresql/16/bin
+      GAMW_PG_VERSION_PREFIX: '16.'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: mvnw-${{ hashFiles('backend/.mvn/wrapper/maven-wrapper.properties') }}
+      - name: Maven Wrapper (descarga verificada por SHA-256, con reintentos)
+        working-directory: backend
+        run: |
+          for i in 1 2 3 4 5; do
+            sh ./mvnw --batch-mode -v && exit 0
+            echo "Descarga de Maven falló (intento $i); reintentando"; sleep $((i * 20))
+          done
+          exit 1
+      - name: PostgreSQL 16 y PostGIS (solo binarios; el clúster lo crea la prueba)
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends postgresql-16 postgresql-16-postgis-3
+          sudo systemctl stop postgresql || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: apps/web/.node-version
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Dependencias web y Chromium de Playwright
+        working-directory: apps/web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: E2E de navegador (flujo municipal, autenticación y registro/planificación)
+        working-directory: backend
+        # El resultado no se altera: falla si falla Maven. Solo se publica un resumen de fallos como anotación.
+        run: |
+          set +e
+          sh ./mvnw --batch-mode --no-transfer-progress \
+            -Dtest=FlujoMunicipalNavegadorIT,AutenticacionWebIT,RegistroPlanificacionWebIT -Dsurefire.failIfNoSpecifiedTests=false test \
+            > "$RUNNER_TEMP/mvn-e2e.log" 2>&1
+          codigo=$?
+          grep -viE 'authorization|bearer|eyJ' "$RUNNER_TEMP/mvn-e2e.log" > "$RUNNER_TEMP/mvn-e2e-sanitizado.log"
+          tail -n 120 "$RUNNER_TEMP/mvn-e2e-sanitizado.log"
+          if [ "$codigo" -ne 0 ]; then
+            resumen=$( { grep -nE 'Tests run:.*FAIL|not ok|waiting for|strict mode|Timeout|Falló el aprovisionamiento|Caused by|FATAL' "$RUNNER_TEMP/mvn-e2e-sanitizado.log" | head -20; } | cut -c1-260 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Fallos de E2E de navegador::${resumen}"
+          fi
+          cp "$RUNNER_TEMP/mvn-e2e-sanitizado.log" "$GITHUB_WORKSPACE/backend/target/mvn-e2e-sanitizado.log" || true
+          exit $codigo
+      - name: Informes (surefire y registro sanitizado)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-e2e-reports
+          path: |
+            backend/target/surefire-reports
+            backend/target/mvn-e2e-sanitizado.log
+          if-no-files-found: ignore
+          retention-days: 14

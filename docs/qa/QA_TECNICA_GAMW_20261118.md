@@ -49,6 +49,20 @@
   Cubre aspectos de CU-13, CU-16, CU-21 (lectura/denegación) y CU-29; los pasos de incidencia → acción correctiva → verificación quedan cubiertos por las IT HTTP existentes, no por navegador.
 - **FlutterSecureStorage (decrypt):** la causa de los errores observados en la corrida del emulador **no se pudo confirmar** (los registros del emulador no son accesibles desde esta sesión). El código tenía un defecto real de resiliencia: una copia cifrada ilegible hacía fallar `restaurar()` y saltaba la carga de evidencia local/transmisión al arrancar. Corregido (`GestorSesion.restaurar`: descarta solo esa copia, nunca claves ni SQLite) con prueba `sesion_almacen_ilegible_test.dart` (validada por CI Flutter, no ejecutada localmente por el guard). No hay evidencia de pérdida de seguridad; `resetOnError:false` se mantiene.
 
+## 5c. Flujo correctivo en navegador y seguridad de sesión móvil (ampliación)
+
+- **`FlujoMunicipalNavegadorIT` ampliada (ejecutada localmente 1/1, ~26 s; Chromium + Vite + backend REST + PostgreSQL/PostGIS aislados):**
+  - UI real: fiscalizador solicita la acción correctiva sobre una incidencia (`/correctivas`), verifica la atención y ve el historial; una cuenta que solo puede
+    solicitar ve el historial sin formulario de verificación; denegaciones de una cuenta sin concesiones.
+  - REST real desde Java (NO por la UI): ejecución del conductor (INICIO, GPS desordenado con hueco, duplicado idempotente, incidencia, FIN), respuesta del operador de empresa
+    por concesión de periodo, aislamiento de otro periodo/empresa (403, lista vacía), fiscalizador municipal no responde como empresa (403), verificar sin atención previa (409),
+    sin `CORRECTIVA_VERIFICAR` (403), categoría inventada/retirada (409), respuesta idempotente y conflicto por contenido distinto (409), segunda verificación (409), incidencia posterior a FIN (409),
+    inmutabilidad de respuesta/verificación, sin dictamen ni alteración de GPS/INICIO/FIN.
+  - La planificación (jornada, asignación, periodos, concesiones) se siembra por SQL y **no** se realiza por la UI. La categoría de verificación es una **fixture sintética**, no oficial.
+- **`GestorSesion.restaurar` (móvil):** ya no borra por errores transitorios; solo descarta la copia cuando el error confirma ilegibilidad criptográfica (`copiaCifradaIlegible`); una restauración
+  obsoleta (inicio/cierre posterior) nunca toca el almacén, y el borrado se serializa y revalida la revisión. 6 pruebas (`sesion_almacen_ilegible_test.dart`) incl. concurrencia; validadas por el CI de Flutter, no ejecutadas localmente.
+- **CI:** nuevo workflow separado `browser-e2e.yml` (Chromium/Playwright + PostGIS efímero) para esta prueba, `AutenticacionWebIT` y `RegistroPlanificacionWebIT`; `verify.yml` y el emulador no se modifican.
+
 ## 6. Distinción
 
 Todo lo anterior es **verificación técnica** con datos sintéticos. Ningún CU queda **aceptado institucionalmente**.
