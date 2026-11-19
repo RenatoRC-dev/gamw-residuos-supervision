@@ -50,7 +50,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 12 Asignar recursos | RF-07 | **A4** | ídem + `ReferenciasJornadas` | ídem | — | ídem (asignar, reasignar, historial, una abierta, recursos elegibles) | **IMPLEMENTED** (técnico, §13); alta de vínculos de recursos = CU-06/07 (A1), fuera de este corte |
 | 13 Ejecutar jornada | RF-08/09/10/11 | A5 | `EjecucionJornadasController`, `PosicionesGpsController`, `MisJornadasController`, V7–V9 | — | `pagina_operacion.dart`, SQLite, `ServicioCapturaGps.kt`, cola/sync | ITJ `EjecucionAutenticadaIT`, `EventosEjecucionIT`, `PosicionesGpsIT`, `CadenaOperativaFiscalizacionIT`; FT `test/auth/pagina_operacion_test.dart`; EMU `qa_emulador/cadena_offline_emulador_test.dart` (**GPS sintético**, no UI) | **PARTIAL**: GPS nativo, batería, segundo plano, fabricantes y CA-4A-21 sin QA física; el emulador no maneja la UI |
 | 14 Incidencia | RF-16 | A3/A4/A5 según ámbito | `ActuacionesController`, `GestionarActuaciones` | `PaginaCorrectivas.tsx` (lectura) | `panel_incidencias.dart` | REST en `FlujoMunicipalNavegadorIT` (alta, duplicado, tardía 409); móvil/web alta: **—** | **PARTIAL**: móvil sin pruebas; A4 y captura tardía/offline sin política |
-| 15 Monitorear posición | RF-12 | A3 / A4 | `MonitoreoController` | `PaginaMonitoreo.tsx` | — | **—** (solo cierre en `ConsultaSeguimientoGpsIT:109`) | **PARTIAL**: sin pruebas; A4 = D1; continuidad en ejecución real sin QA |
+| 15 Monitorear posición | RF-12 | A3 / A4 | `MonitoreoController` | `PaginaMonitoreo.tsx` | — | E2E `flujo-monitoreo.test.mjs` vía `MonitoreoMunicipalNavegadorIT` (UI A3 + REST), §15 | **PARTIAL** (A3 verificado técnicamente, §15): A4 sigue bloqueado por D1 (sin permiso; 403) y falta QA de continuidad con ejecución real |
 | 16 Trayectoria GPS | RF-12 | A3 / **A4** | `TrayectoriasController`, `ConsultarTrayectoriasAutorizadas` | `PaginaTrayectorias.tsx`, `MapaTrayectoria.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E `flujo-municipal.test.mjs` (tabla, orden, hueco, «inferidos») | **PARTIAL**: A3 verificado; A4 sin acceso (D1); el lienzo del mapa/teselas **no** se verifica |
 | 17 Continuidad/integridad GPS | RF-13 | A3 | `RevisionGpsController`, `RevisarEvidenciaGps` | `PaginaRevisionGps.tsx` | — | **—** | **PARTIAL**: sin pruebas; umbrales provisionales por aprobar |
 | 18 Coincidencias | RF-14 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; vigencia/precisión de puntos |
@@ -205,6 +205,25 @@ Verificado (local): `ReprogramacionOperadorNavegadorIT` 1/1 (Chromium real + RES
 | Política oficial de reprogramación, aprobación automática, D1 | **PENDING / no implementado** | no se inventaron; el procedimiento institucional para jornadas con evidencia sigue pendiente |
 
 Observación: la prueba de GPS/fiscalización sembrada como evidencia usa un evento de ejecución; el bloqueo por `posicion_gps`/`fiscalizacion` está en la misma consulta (`tieneEvidencia`) pero no se sembró cada tipo por separado.
+
+## 15. Actualización — corte CU-15 (monitoreo municipal de últimas posiciones) · RF-12
+
+Verificado (local): `MonitoreoMunicipalNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado, `gamw.monitoreo.antiguedad-segundos=600`, consulta cada 5 s). Sin cambios de código de producción: no se detectó ningún defecto. Datos sintéticos sembrados por SQL. Conteos de la matriz sin cambio (CU-15 permanece PARTIAL).
+
+| Criterio | Estado | Prueba |
+|---|---|---|
+| A3 ve solo jornadas con INICIO y sin FIN | **Verificado** | 5 de 7 sembradas; la cerrada y la no iniciada no aparecen (REST y UI) |
+| Última posición por `capturado_en` (no `recibido_en`), incluida sincronización tardía | **Verificado** | muestra recibida después pero capturada antes no gana (REST y UI) |
+| Desempate estable | **Verificado** | empate de captura: gana `captura_id` mayor (los `id` de fila no se probaron como segundo desempate) |
+| Captura, recepción, coordenadas, precisión y antigüedad | **Verificado** | valores exactos en REST y en la fila; jornada antigua rotulada «Sin lectura reciente» |
+| Jornada sin GPS / antigua / cerrada | **Verificado** | «Sin posiciones recibidas», «Ubicación no disponible», «Sin dato»; sin texto de detención, omisión, fraude o incumplimiento en la tabla |
+| Consulta periódica sin seguimiento instantáneo | **Verificado** | UI rotula «No es seguimiento instantáneo»; la segunda petición ocurre sola; no se fabrican posiciones |
+| Red no disponible | **Verificado** | navegador sin red: mensaje y evidencia conservada; al volver la red, se limpia |
+| Sesión vencida | **Verificado (simulado)** | 401 simulado en la UI cierra la sesión y borra la evidencia; la expiración real del JWT no se probó aquí |
+| Sin acceso / sin exposición entre operadores | **Verificado** | sin token y token inválido 401/403; cuenta sin permiso y A4 = 403 sin datos; permiso revocado = 403; consultar no modifica evidencia |
+| D1: A4 sin permisos de monitoreo | **Preservado** | A4 no tiene concesión de monitoreo; no se concedió ninguno |
+| Mapa: contención, referencia histórica seleccionable y respaldo tabular | **Verificado parcialmente** | región del mapa contenida y selector de ruta; los **marcadores WebGL no se afirman por DOM** (no verificados) |
+| Continuidad con ejecución móvil real (CU-13) | **PENDING** | no cubierto en este corte |
 
 ## 9. Distinción final
 
