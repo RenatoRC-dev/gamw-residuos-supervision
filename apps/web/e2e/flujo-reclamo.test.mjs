@@ -36,6 +36,10 @@ test('CU-26: A3 registra reclamos (sin y con jornada) en el navegador, idempoten
     await formulario.waitFor();
     // La interfaz no ofrece validar ni revisar con este permiso.
     assert.equal(await page.getByRole('heading', { name: 'Agregar revisión humana' }).count(), 0);
+    // Causa raíz verificada: el mapa debe estar contenido (hoja de estilo cargada); si no, se superpone al botón de envío.
+    await page.locator('.maplibregl-map').first().waitFor(); // la página tiene más de un mapa; se verifican todos
+    const cajas = await page.locator('.maplibregl-map').evaluateAll(ns => ns.map(n => { const s = getComputedStyle(n); return `${s.position}/${s.overflow}`; }));
+    assert.ok(cajas.length >= 1 && cajas.every(c => c === 'relative/hidden'), `Cada mapa queda contenido en su caja: ${cajas}`);
     const boton = formulario.getByRole('button', { name: /^(Registrar|Reintentar misma solicitud)$/ });
     // Si el botón no es accionable, se imprime su estado real (DIAG) antes de fallar: diagnóstico sin ocultar el fallo.
     const enviar = () => ({ click: async () => {

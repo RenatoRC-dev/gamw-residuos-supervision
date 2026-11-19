@@ -185,7 +185,7 @@ Verificado (local): `PlanificacionOperadorNavegadorIT` 1/1 (Chromium real + REST
 | Calendarios de disponibilidad, horarios oficiales, D1, contratos | **No implementado / PENDING** | no se inventaron |
 | CU-24 (reprogramación) | **Cubierto en el corte siguiente** | ver §14 |
 
-Mitigación CI relacionada: el Browser E2E de `1631d79` falló en CI (Linux) por un clic en el formulario de reclamos agotado; no reproducible en local. Se añadió estilo de mapa local sin red y diagnóstico `DIAG` para identificar la causa si persiste (causa raíz: **no confirmada**).
+Nota CI (CU-26, Linux): el clic en «Registrar» fallaba en CI (runs `1631d79`, `8da3fb7`, `d7e4561`; el `DIAG` mostró el formulario con botones habilitados, o sea no era un estado deshabilitado). El mapa de reclamos (`adaptadorReferenciasEspaciales.ts`) no importaba `maplibre-gl.css` y las páginas se cargan de forma diferida, de modo que la hoja de estilo solo llegaba si otra página con mapa se había cargado antes. Se movió la importación al adaptador y la prueba comprueba que cada mapa quede contenido (`position: relative`, `overflow: hidden`). **Causa: hipótesis respaldada por código, NO reproducida en Linux**; queda por confirmar con el Browser E2E posterior al arreglo. Un estilo de mapa local sin red se mantiene en la prueba por aislamiento.
 
 ## 14. Actualización — corte CU-24 (reprogramación por el operador A4) · RF-20
 

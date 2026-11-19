@@ -1,4 +1,7 @@
 import { Map as LibreMap, NavigationControl, LngLatBounds, setWorkerUrl, type GeoJSONSource } from 'maplibre-gl';
+// Las hojas de estilo de MapLibre deben viajar con el adaptador: sin ellas el lienzo y los controles no quedan contenidos
+// y se superponen al formulario que sigue al mapa (p. ej. reclamos), interceptando el clic del botón de envío.
+import 'maplibre-gl/dist/maplibre-gl.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { TerraDraw, TerraDrawPointMode, TerraDrawPolygonMode, TerraDrawSelectMode } from 'terra-draw';
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
