@@ -50,6 +50,19 @@ jobs:
           done
           echo "::error title=Infraestructura apt no disponible::No se pudieron instalar postgresql-16/postgis desde apt tras 3 intentos; las pruebas no se ejecutaron (no es un fallo de la aplicación)."
           exit 1
+      - name: Resolver plugins y dependencias (reintentos acotados ante fallos transitorios del repositorio)
+        working-directory: backend
+        # Run 44537269267: maven-failsafe-plugin:3.5.6 (versión existente en Maven Central) no se pudo resolver de forma transitoria.
+        # Solo descarga; las pruebas NO se omiten: se ejecutan completas en el paso siguiente.
+        run: |
+          for i in 1 2 3; do
+            sh ./mvnw --batch-mode --no-transfer-progress -Ppostgres-integration \
+              -Daether.connector.http.retryHandler.count=5 -Daether.connector.http.retryHandler.requestSentEnabled=true \
+              dependency:resolve-plugins dependency:resolve && exit 0
+            echo "Resolución de dependencias falló (intento $i); reintentando"; sleep $((i * 30))
+          done
+          echo "::error title=Repositorio Maven no disponible::No se resolvieron plugins/dependencias tras 3 intentos; las pruebas no se ejecutaron (infraestructura, no la aplicación)."
+          exit 1
       - name: Integración esencial (Flyway V1–V20, seguridad, cadena operativa, historial, bitácora)
         working-directory: backend
         # El resultado no se altera: falla si falla Maven. Solo se publica una anotación con las líneas de error para diagnóstico.
@@ -62,7 +75,7 @@ jobs:
           tail -n 400 "$RUNNER_TEMP/mvn-it.log"
           if [ "$codigo" -ne 0 ]; then
             # Primera causa raíz: excepciones del arnés y registros de initdb/pg_ctl/postgres del clúster efímero (si se conservaron).
-            resumen=$( { grep -nE 'Falló el aprovisionamiento|Se requiere PostgreSQL|Caused by|FATAL|could not|Permission denied' "$RUNNER_TEMP/mvn-it.log" | head -12
+            resumen=$( { grep -nE 'Falló el aprovisionamiento|Se requiere PostgreSQL|Caused by|FATAL|could not|Could not (transfer|resolve)|status code|Permission denied|Tests run:.*FAIL' "$RUNNER_TEMP/mvn-it.log" | head -16
               for f in "${TMPDIR:-/tmp}"/gamw-v8-it-*/*.log; do [ -f "$f" ] && { echo "== $f"; tail -n 12 "$f"; }; done; } | cut -c1-260 | head -70 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=Fallos de integracion::${resumen}"
           fi
