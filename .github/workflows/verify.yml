@@ -77,13 +77,13 @@ jobs:
           tail -n 60 "$RUNNER_TEMP/mvn-resolver.log"
           echo "::error title=Repositorio Maven no disponible::No se resolvieron plugins/dependencias tras 3 intentos con -U; las pruebas no se ejecutaron (infraestructura). Causa: ${causa}"
           exit 1
-      - name: Integración esencial (Flyway V1–V20, seguridad, cadena operativa, historial, bitácora)
+      - name: Integración esencial (Flyway V1–V21, seguridad, cadena operativa, historial, bitácora)
         working-directory: backend
         # El resultado no se altera: falla si falla Maven. Solo se publica una anotación con las líneas de error para diagnóstico.
         run: |
           set +e
           sh ./mvnw --batch-mode --no-transfer-progress -Ppostgres-integration verify \
-            -Dit.test=FlywayBaselineIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT \
+            -Dit.test=FlywayBaselineIT,IntegridadHistoricaIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT \
             > "$RUNNER_TEMP/mvn-it.log" 2>&1
           codigo=$?
           tail -n 400 "$RUNNER_TEMP/mvn-it.log"

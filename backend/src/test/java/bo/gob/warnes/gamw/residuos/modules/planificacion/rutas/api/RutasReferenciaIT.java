@@ -34,13 +34,8 @@ class RutasReferenciaIT extends IntegracionPostgresV8 {
     @Autowired JdbcTemplate jdbc;
     private final Set<UUID> rutasPropias = new HashSet<>();
 
-    @AfterEach
-    void eliminarSoloDatosSinteticosPropios() {
-        for (UUID id : rutasPropias) {
-            jdbc.update("DELETE FROM ruta_version WHERE ruta_id = ?", id);
-            jdbc.update("DELETE FROM ruta WHERE id = ?", id);
-        }
-    }
+    // Sin limpieza posterior: desde V21 ruta_version no se borra (historia de referencia). Fixtures con identificadores únicos
+    // en un clúster efímero; las aserciones de esta clase se limitan a las rutas propias (rutasPropias).
 
     @Test
     void esquemaYContratoUsanVocabularioEspanol() throws Exception {

@@ -335,6 +335,24 @@ Base `4dd9d75`. Pruebas locales: backend focal (eventos/GPS/Flyway, autenticaci�
 
 Riesgo adicional registrado (no corregido, requiere decisión): las tablas `jornada`, `asignacion_jornada` y `ruta_version` protegen UPDATE pero no DELETE de filas sin evidencia dependiente, y el rol de la aplicación es dueño del esquema (podría desactivar triggers). Separar rol de migración y rol de ejecución es decisión de despliegue.
 
+## 22. Integridad histórica (corte INT, 2026-11-19) — `V21__integridad_historica_sin_borrado.sql`
+
+Fuente: `AUDITORIA_INTEGRIDAD_HISTORICA_GAMW_20261119.md` (revisión estática de `5e18005`). Cada hallazgo se validó contra el código y V1–V20, que no se modifican.
+
+| ID | Hallazgo validado | Estado | Corrección / evidencia |
+|---|---|---|---|
+| INT-01 | `jornada` y `asignacion_jornada` protegían solo UPDATE (V6); un DELETE SQL directo borraba filas sin dependientes | **FIXED** | triggers `BEFORE DELETE` (V21). `IntegridadHistoricaIT`: DELETE de filas **sin dependientes** rechazado por el trigger (mensaje «no se borra»), no por clave foránea |
+| INT-02 | `ruta_version` protegía solo UPDATE (V2/V3) | **FIXED** | `BEFORE DELETE` en `ruta_version` (V21); prueba con versión sin jornadas |
+| INT-03 | TRUNCATE eludía los triggers de fila de 26 tablas de antecedentes inmutables | **FIXED** | `BEFORE TRUNCATE` de sentencia en esas 26 + `jornada`, `asignacion_jornada`, `ruta_version` (eventos y GPS desde V20); `TRUNCATE ... CASCADE` rechazado; verificación en `pg_trigger` de las 31 tablas |
+| INT-04 | rol de ejecución y de migración sin separación (el rol de desarrollo es dueño del esquema; `application.yml` usa las mismas credenciales para Flyway) | **PENDING (decisión de despliegue)** | propuesta sin cambiar la política: rol de **migración** propietario (solo Flyway) y rol de **ejecución** no propietario con `SELECT/INSERT`, `UPDATE` solo de las columnas de cierre/sustitución/revocación, sin `DELETE`, `TRUNCATE`, `TRIGGER`, `REFERENCES` ni DDL, y `REVOKE` a `PUBLIC`. Validación con las consultas de solo lectura de la auditoría en la instalación objetivo: **no ejecutada** (sin base real). El código de producción no contiene `DELETE` ni `TRUNCATE` |
+| INT-05 | sin clave compuesta jornada↔asignación en eventos, GPS e incidencias | **FIXED** | `UNIQUE(id, jornada_id)` y 3 FK compuestas; V21 ejecuta antes la consulta de anti-coincidencia de la auditoría y **se detiene** si hay inconsistencias (no reasigna ni borra); claves `convalidated`; prueba con asignación de otra jornada rechazada y de la misma aceptada |
+| INT-06 | limpieza destructiva de fixtures | **FIXED (solo pruebas)** | `JornadasIT` y `RutasReferenciaIT` sin borrado (identificadores aleatorios en clúster efímero); los E2E que eligen jornada en listados paginados avanzan con la paginación real (`e2e/paginacion.mjs`) en lugar de asumir la primera página; ninguna aserción ni protección se debilita |
+| INT-07 | vigencias de versiones de una ruta podían superponerse por SQL directo | **FIXED (defensa en profundidad)** | trigger `BEFORE INSERT OR UPDATE` con bloqueo de la ruta que rechaza intervalos `[desde, hasta)` superpuestos (sin extensiones nuevas); verificación previa de datos existentes; prueba: contiguas aceptadas, superpuesta rechazada |
+| — | operaciones legítimas | **Preservado** | sustitución de jornada (reprogramación), primer cierre de asignación (segundo rechazado) y cierre de versión de ruta siguen funcionando |
+| — | retención/depuración institucional | **PENDING (política)** | no se inventa; ninguna migración define borrado administrativo |
+
+Pruebas locales: `IntegridadHistoricaIT` 4/4; perfil `postgres-integration` (11 IT de CI + `IntegridadHistoricaIT`): 98 unitarias + 69 de integración, 0 fallos; 20 clases de integración y E2E de navegador con base compartida (148 pruebas) + `ReclamoInstitucionalIT`, `InspeccionCampoIT`, `VehiculosIT`, `RegistroOperativoIT`, `ContextoMisJornadasIT`, `IdentidadPostgresIT` en verde. Riesgo restante: la tabla `ruta` (cabecera) admite DELETE cuando no tiene versiones (sin historia dependiente); no se cambió.
+
 ## 9. Distinción final
 
 Los 6 CU «IMPLEMENTED» (01, 11, 12, 22, 24, 29) lo son en sentido **técnico**. Ningún CU tiene aceptación institucional; GPS físico, batería y comportamiento por fabricante siguen **PENDING** (QA en dispositivo real).

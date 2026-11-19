@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { elegirJornadaPaginada } from './paginacion.mjs';
 
 // Únicamente vía FlujoMunicipalNavegadorIT. CU-20 (A3): registro de una inspección de campo SIN fotografías por la interfaz real con JWT y
 // permiso INSPECCION_REGISTRAR. Es una observación humana: no crea resultado de fiscalización. Fotografías deshabilitadas (política pendiente).
@@ -31,7 +32,7 @@ test('CU-20: A3 registra una inspección sin fotografías en el navegador (idemp
     // La sesión vive en memoria: navegación solo con enlaces de la aplicación.
     await page.getByRole('link', { name: 'Inicio', exact: true }).click();
     await page.getByRole('link', { name: 'Registrar inspección y fiscalizar jornada' }).click();
-    await page.getByLabel('Jornada').selectOption(jornada);
+    await elegirJornadaPaginada(page, 'Jornada', 'Página siguiente', jornada);
     const formulario = page.getByRole('form', { name: 'Registrar inspección de campo' });
     await formulario.waitFor();
     await page.getByText('Fotografías deshabilitadas: política pendiente.', { exact: false }).waitFor();

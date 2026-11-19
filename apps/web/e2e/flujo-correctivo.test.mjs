@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { elegirJornadaPaginada } from './paginacion.mjs';
 
 // Únicamente vía FlujoMunicipalNavegadorIT. Fase 1: el fiscalizador solicita la acción correctiva en la interfaz. La atención de la empresa se
 // registra por REST (no por la UI) entre fases. Fase 2: el fiscalizador verifica en la interfaz con una categoría SINTÉTICA de prueba (no oficial)
@@ -34,7 +35,7 @@ test(`Flujo correctivo (fase ${process.env.GAMW_WEB_TEST_FASE}): solicitud y ver
   const abrirCorrectivas = async () => {
     await page.getByRole('link', { name: 'Inicio', exact: true }).click();
     await page.getByRole('link', { name: 'Incidencias y actuaciones correctivas' }).click();
-    await page.getByLabel('Jornada').selectOption(jornada);
+    await elegirJornadaPaginada(page, 'Jornada', 'Siguiente', jornada);
     await page.getByRole('heading', { name: 'Incidencias operativas' }).waitFor();
   };
   const salir = async () => {

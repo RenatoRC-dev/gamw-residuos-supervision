@@ -52,19 +52,8 @@ class JornadasIT extends IntegracionPostgresV8 {
         jdbc.update("INSERT INTO vinculo_persona_empresa VALUES (?,?,?,DATE '2026-01-01',NULL,true,now(),now())",vp2,p2,empresa);
         for (UUID vp : List.of(vp1,vp2)) jdbc.update("INSERT INTO vinculo_persona_funcion VALUES (?,'00000000-0000-4000-8000-000000000002')",vp); // Supervisor, sin CONDUCTOR.
     }
-    @AfterEach void limpiarSoloDatosPropios() {
-        jdbc.update("DELETE FROM asignacion_jornada WHERE jornada_id IN (SELECT id FROM jornada WHERE periodo_servicio_id=?)",periodo);
-        jdbc.update("DELETE FROM jornada WHERE periodo_servicio_id=?",periodo);
-        jdbc.update("DELETE FROM vinculo_persona_funcion WHERE vinculo_persona_empresa_id IN (?,?)",vp1,vp2);
-        jdbc.update("DELETE FROM vinculo_persona_empresa WHERE id IN (?,?)",vp1,vp2);
-        jdbc.update("DELETE FROM vinculo_vehiculo_empresa WHERE id IN (?,?)",vv1,vv2);
-        jdbc.update("DELETE FROM persona_natural WHERE id IN (?,?)",p1,p2);
-        jdbc.update("DELETE FROM vehiculo WHERE id IN (?,?)",v1,v2);
-        jdbc.update("DELETE FROM periodo_servicio WHERE id=?",periodo);
-        jdbc.update("DELETE FROM empresa_operadora WHERE id IN (?,?)",empresa,otraEmpresa);
-        jdbc.update("DELETE FROM ruta_version WHERE ruta_id=?",ruta);
-        jdbc.update("DELETE FROM ruta WHERE id=?",ruta);
-    }
+    // Sin limpieza posterior: desde V21 jornada, asignacion_jornada y ruta_version no se borran (tampoco en pruebas).
+    // Los fixtures usan identificadores aleatorios en un clúster PostgreSQL efímero propio de la JVM.
     @Test void programaConsultaYDerivaEmpresaSinAceptarCamposAlternos() throws Exception {
         var creada = crear();
         assertThat(creada.get("empresaOperadora").get("id").asText()).isEqualTo(empresa.toString());

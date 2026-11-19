@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { elegirJornadaPaginada } from './paginacion.mjs';
 
 // Únicamente vía FlujoMunicipalNavegadorIT: navegador real, Vite y backend/PostgreSQL nuevos, REST real y datos sintéticos.
 // El conductor (A5) ya ejecutó la jornada por la API real: INICIO, GPS desordenado con un hueco temporal, reintento duplicado y FIN.
@@ -41,7 +42,7 @@ test('Flujo municipal: trayectoria, expediente e historial con permisos separado
     await ingresar(fiscal);
     await irInicio();
     await page.getByRole('link', { name: 'Consultar trayectoria GPS de jornada' }).click();
-    await page.getByLabel('Jornada autorizada').selectOption(jornada);
+    await elegirJornadaPaginada(page, 'Jornada autorizada', 'Más jornadas', jornada);
     await page.getByRole('region', { name: 'Evidencia de la jornada' }).waitFor();
     const filas = page.locator('section[aria-label="Evidencia de la jornada"] table tbody tr');
     await filas.nth(2).waitFor();
