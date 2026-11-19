@@ -117,8 +117,11 @@ public class RevisarEvidenciaGps {
         }
         boolean parcial=total>5000 || hallazgos.stream().anyMatch(h->h.tipo().equals("LIMITE_REFERENCIAS"));
         String estado=seleccion.size()<2?"EVIDENCIA_INSUFICIENTE":parcial?"REVISION_PARCIAL":"REVISION_TECNICA";
-        if(tipo.equals("coincidencias") && referencias.stream().noneMatch(r->r.muestras()>0)) estado="EVIDENCIA_INSUFICIENTE_SIN_REFERENCIAS_APLICABLES";
-        if(tipo.equals("desvios") && seleccion.stream().filter(m->m.posicion().precisionMetros()<=Math.min(p.precisionMetros(),p.radioDetencionMetros())).count()<3)
+        // CU-18: «sin referencias» y «referencias sin muestras temporalmente aplicables» son situaciones distintas y no se confunden.
+        if(tipo.equals("coincidencias") && referencias.isEmpty()) estado="EVIDENCIA_INSUFICIENTE_SIN_REFERENCIAS_APLICABLES";
+        else if(tipo.equals("coincidencias") && referencias.stream().noneMatch(r->r.muestras()>0)) estado="EVIDENCIA_INSUFICIENTE_SIN_MUESTRAS_APLICABLES";
+        // CU-19: con menos de dos muestras la evidencia es insuficiente; no se rotula como «revisión parcial».
+        if(tipo.equals("desvios") && !estado.equals("EVIDENCIA_INSUFICIENTE") && seleccion.stream().filter(m->m.posicion().precisionMetros()<=Math.min(p.precisionMetros(),p.radioDetencionMetros())).count()<3)
             estado="REVISION_PARCIAL_DETENCIONES_INDETERMINADAS";
         return new Resultado(jornada,contexto.rutaVersionId(),corte,
             "TECNICA_PROVISIONAL_RECALCULABLE: muestras recibidas, sin interpolación. Ausencia de candidatos no acredita ausencia de detenciones; no certifica integridad, presencia del camión ni cumplimiento.",p,total,seleccion.size(),parcial,

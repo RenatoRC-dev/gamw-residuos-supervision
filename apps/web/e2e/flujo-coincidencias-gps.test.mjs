@@ -68,7 +68,7 @@ test('CU-18: A3 revisa coincidencias espaciales (observada, sin coincidencia, in
 
     // ---- Cero muestras con referencias: todo insuficiente ----
     assert.equal(await revisar(d.j.cero), 200);
-    await page.getByRole('heading', { name: 'EVIDENCIA_INSUFICIENTE_SIN_REFERENCIAS_APLICABLES' }).waitFor();
+    await page.getByRole('heading', { name: 'EVIDENCIA_INSUFICIENTE_SIN_MUESTRAS_APLICABLES' }).waitFor(); // hay referencias, faltan muestras
     await page.getByText('Muestras recibidas 0; analizadas 0.', { exact: false }).waitFor();
     await items().first().waitFor();
     assert.equal(await items().filter({ hasText: '· EVIDENCIA_INSUFICIENTE ·' }).count(), d.esperadas.length);

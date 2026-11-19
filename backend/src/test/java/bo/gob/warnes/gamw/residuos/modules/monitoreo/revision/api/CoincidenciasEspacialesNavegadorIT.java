@@ -267,9 +267,16 @@ class CoincidenciasEspacialesNavegadorIT extends IntegracionPostgresV8 {
         assertThat(otra.get("CX-OTRA-RUTA-"+n+"@v1").get("observadas").asLong()).isEqualTo(1);
         // Cero muestras, cero referencias, límites de cómputo.
         var cero=coincidencias(jcero.toString(),"",tr);
-        assertThat(cero.get("estado").asText()).isEqualTo("EVIDENCIA_INSUFICIENTE_SIN_REFERENCIAS_APLICABLES");
+        assertThat(cero.get("estado").asText()).as("hay referencias; faltan muestras aplicables").isEqualTo("EVIDENCIA_INSUFICIENTE_SIN_MUESTRAS_APLICABLES");
         assertThat(cero.get("referencias")).hasSize(esperadas.size());
-        assertThat(coincidencias(jsinRef.toString(),"",tr).get("referencias")).isEmpty();
+        var sinRef=coincidencias(jsinRef.toString(),"",tr);
+        assertThat(sinRef.get("referencias")).isEmpty();
+        assertThat(sinRef.get("estado").asText()).as("hay muestras; no hay referencias").isEqualTo("EVIDENCIA_INSUFICIENTE_SIN_REFERENCIAS_APLICABLES");
+        // Referencias presentes y muestras presentes pero fuera de toda vigencia: también «sin muestras aplicables».
+        UUID versionFuera=version(),jfuera=jornada(versionFuera);
+        control(versionFuera,UUID.randomUUID(),1,"CP-FUERA-"+n,"PUNTO",punto(-63.1,-17.7),100.0,b.plusSeconds(1000),null);
+        posicion(jfuera,b.plusSeconds(10),b.plusSeconds(12),-63.1,-17.7,5); posicion(jfuera,b.plusSeconds(20),b.plusSeconds(22),-63.1,-17.7,5);
+        assertThat(coincidencias(jfuera.toString(),"",tr).get("estado").asText()).isEqualTo("EVIDENCIA_INSUFICIENTE_SIN_MUESTRAS_APLICABLES");
         var parcial=coincidencias(jlim.toString(),"",tr);
         assertThat(parcial.get("referencias")).hasSize(100); assertThat(parcial.get("parcial").asBoolean()).isTrue();
         assertThat(parcial.get("estado").asText()).isEqualTo("REVISION_PARCIAL");
