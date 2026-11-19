@@ -1,6 +1,6 @@
 # Matriz de cobertura de los 31 CU — auditoría funcional (baseline `6db0d1e`; actualizada en `c1f0ce3` [CU-22] y en el corte CU-20)
 
-> Conteo vigente tras los cortes CU-22, CU-20, CU-26 y CU-11/12 (§13). **IMPLEMENTED 5 (01, 11, 12, 22, 29) · PARTIAL 22 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1.** CU-26 y CU-20 permanecen PARTIAL (solo subconjuntos verificados, §11-12). Detalle histórico del conteo anterior: **IMPLEMENTED 3 · PARTIAL 24 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1**. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
+> Conteo vigente tras los cortes CU-22, CU-20, CU-26, CU-11/12 (§13) y CU-24 (§14). **IMPLEMENTED 6 (01, 11, 12, 22, 24, 29) · PARTIAL 21 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1.** «IMPLEMENTED» = verificación técnica automatizada, NO aceptación institucional del GAMW. CU-26 y CU-20 permanecen PARTIAL (solo subconjuntos verificados, §11-12). Conteos anteriores (históricos, ya no vigentes): 5/22/3/1 tras CU-11/12 y **3/24/3/1** antes de ellos. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
 
 **Naturaleza:** auditoría de solo lectura (no se implementó nada). Evidencia = rutas de archivos del repositorio y resultados ya ejecutados en esta campaña.
 **Distinción obligatoria:** *verificación técnica automatizada* ≠ *aceptación institucional*. Ningún CU está aceptado por el GAMW.
@@ -59,7 +59,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 21 Fiscalizar y resultado | RF-18 | A3 | `GestionarFiscalizacion` | `PaginaFiscalizacion.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E expediente (lectura) | **PARTIAL / emisión bloqueada**: catálogo oficial PENDING-05 vacío; emisión en UI no probada; rectificación no definida |
 | 22 Acciones correctivas | RF-19 | A3 (+A4 responde) | `ActuacionesController`, `CorrectivasEmpresaController`, `AtenderCorrectivasEmpresa` | `PaginaCorrectivas.tsx` ✔ solicitud; `PaginaCorrectivasEmpresa.tsx` | — | E2E `flujo-correctivo.test.mjs` fases 1 y 1b (solicitud A3 y **respuesta A4 por la UI**, JWT) + REST en `FlujoMunicipalNavegadorIT` | **IMPLEMENTED** (técnico, ver §10); estados/plazos/adjuntos = institucional |
 | 23 Verificar atención | RF-19 | A3 | `GestionarActuaciones.verificar` | `PaginaCorrectivas.tsx` | — | E2E fase 2 (UI) + REST (409/403) con categoría **sintética** | **PARTIAL / bloqueado en producción**: catálogo oficial inexistente |
-| 24 Reprogramar | RF-20 | **A4** | `ReprogramarJornadasOperador`, V16 | `PaginaReprogramacionEmpresa.tsx` | — | ITJ REST `AutorizacionOperativaV19IT`; ITD `JornadasIT`; E2E `RegistroPlanificacionWebIT` **dev-local por vía municipal** (cerrada en producción: 403) | **PARTIAL**: UI de producción (A4) sin pruebas; ejecutadas/fiscalizadas bloqueadas |
+| 24 Reprogramar | RF-20 | **A4** | `ReprogramarJornadasOperador`, V16 | `PaginaReprogramacionEmpresa.tsx` | — | ITJ REST `AutorizacionOperativaV19IT`; ITD `JornadasIT`; E2E `RegistroPlanificacionWebIT` **dev-local por vía municipal** (cerrada en producción: 403) | **IMPLEMENTED** (técnico, §14): UI A4 con JWT verificada; jornadas ejecutadas/fiscalizadas siguen **bloqueadas** (procedimiento institucional pendiente, no inventado) |
 | 25 Reporte ciudadano | RF-21 (GAP-01) | A6 externo | — | — | — | — | **INSTITUTIONALLY BLOCKED**: formulario público, privacidad y controles sin aprobar; RF por ampliar |
 | 26 Registrar reclamo | RF-21 | A3 | `ReclamosController.registrar`, `GestionarReclamos`, V18 | `PaginaReclamosPuntos.tsx` (formulario «Registrar reclamo recibido») | — | ITJ `ReclamoInstitucionalIT` (4); E2E `flujo-reclamo.test.mjs` (UI, JWT) vía `FlujoMunicipalNavegadorIT` | **PARTIAL** (registro textual verificado, §12): anexos, privacidad (datos personales), catálogo de canales y duplicados entre canales sin definir/bloqueados; CU-27 y CU-25 fuera de alcance |
 | 27 Validar/gestionar reclamos | RF-21 | A3 | `ReclamosController` (revisiones/relaciones) | ídem | — | **—** | **PARTIAL**: sin pruebas; catálogo de valoración vacío (D1/PENDING) |
@@ -183,9 +183,28 @@ Verificado (local): `PlanificacionOperadorNavegadorIT` 1/1 (Chromium real + REST
 | Acceso entre operadores | **Verificado** | otro operador: GET jornada, recursos y asignar = 403 |
 | Programar/asignar no implica ejecución ni cumplimiento | **Verificado** | 0 eventos INICIO/FIN, 0 GPS, 0 fiscalización, 0 acciones correctivas; la UI no muestra veredicto ni «en ejecución» |
 | Calendarios de disponibilidad, horarios oficiales, D1, contratos | **No implementado / PENDING** | no se inventaron |
-| CU-24 (reprogramación) | **Fuera de este corte** | solo regresión existente (`JornadasIT`, `AutorizacionOperativaV19IT`) |
+| CU-24 (reprogramación) | **Cubierto en el corte siguiente** | ver §14 |
 
 Mitigación CI relacionada: el Browser E2E de `1631d79` falló en CI (Linux) por un clic en el formulario de reclamos agotado; no reproducible en local. Se añadió estilo de mapa local sin red y diagnóstico `DIAG` para identificar la causa si persiste (causa raíz: **no confirmada**).
+
+## 14. Actualización — corte CU-24 (reprogramación por el operador A4) · RF-20
+
+Verificado (local): `ReprogramacionOperadorNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado) con `apps/web/e2e/flujo-reprogramacion.test.mjs`. Sin cambios de código de producción: no se detectó ningún defecto. Empresas, periodos, ruta, vínculos, concesiones y las jornadas de partida (incluida una con evento INICIO) se siembran por SQL.
+
+| Criterio | Estado | Prueba |
+|---|---|---|
+| Sucesora conserva periodo y versión; enlaza antecedente; registra motivo y fechas (Bolivia UTC−04:00) | **Verificado** | DB: J1/J2 con mismo periodo y versión, `jornada_antecedente_id`, motivo exacto e inicio exacto; el cuerpo UI no envía periodo/versión/empresa; REST rechaza esos campos (400) |
+| Original, asignaciones, eventos y GPS no cambian | **Verificado** | fila de J0 idéntica salvo dejar de ser vigente; asignaciones de J0 idénticas; evento de la jornada con evidencia idéntico |
+| Sucesora no hereda recursos, eventos, GPS, fiscalización ni acciones correctivas | **Verificado** | 0 filas en J1/J2; UI: «Sin asignaciones…» y `SIN_ASIGNACIONES`; sin veredicto ni «en ejecución» |
+| Segunda reprogramación: cadena histórica completa | **Verificado** | UI recorre J2→J1→J0 con motivos; DB: 2 enlaces únicos y solo la última vigente; el sustituido no admite otra sucesora (409) |
+| Motivo faltante / fechas inválidas | **Verificado** | UI: sin motivo no hay petición; fin anterior al inicio = 400; REST: sin motivo/en blanco/>10000, sin solicitud, sin inicio, fuera de periodo, precisión >µs = 400; antes de la concesión = 403 |
+| Actores no autorizados | **Verificado** | otro operador y operador solo con consulta = 403 (la UI no ofrece el formulario); sin autenticar = 403 (denegado por defecto) |
+| Duplicados, fallo de transporte, conflicto | **Verificado** | UI: envío fallido + reintento = misma solicitud y una sucesora; REST: duplicado = 200 con la misma sucesora; mismo ID con otro contenido o fecha = 409; solicitud ajena = 403 |
+| Sucesoras concurrentes | **Verificado** | dos solicitudes distintas sobre el mismo antecedente: 200 y 409, una sola sucesora; misma solicitud concurrente: sin 5xx, una sucesora y reintento idempotente |
+| Jornadas ejecutadas o fiscalizadas | **Bloqueadas (según reglas vigentes)** | con evento: UI sin formulario y REST 409; sin sucesora ni traslado de evidencia |
+| Política oficial de reprogramación, aprobación automática, D1 | **PENDING / no implementado** | no se inventaron; el procedimiento institucional para jornadas con evidencia sigue pendiente |
+
+Observación: la prueba de GPS/fiscalización sembrada como evidencia usa un evento de ejecución; el bloqueo por `posicion_gps`/`fiscalizacion` está en la misma consulta (`tieneEvidencia`) pero no se sembró cada tipo por separado.
 
 ## 9. Distinción final
 
