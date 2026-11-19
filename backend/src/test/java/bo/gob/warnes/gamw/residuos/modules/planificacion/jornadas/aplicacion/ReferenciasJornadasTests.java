@@ -17,8 +17,9 @@ class ReferenciasJornadasTests {
     private final LocalDate fecha = LocalDate.of(2026,5,10);
     private final Instant inicio = fecha.atTime(23,30).atZone(ZoneId.of("America/La_Paz")).toInstant();
     @BeforeEach void preparar() {
-        when(registro.periodoPorId(periodo)).thenReturn(Optional.of(new PeriodoServicio(periodo,empresa,fecha,fecha,true,inicio,inicio)));
-        when(registro.empresa(empresa,false)).thenReturn(Optional.of(new EmpresaOperadora(empresa,null,"Empresa sintética",null,true,inicio,inicio)));
+        // H1 (F1): la validación de escritura lee periodo y empresa con bloqueo compartido (FOR SHARE).
+        when(registro.periodoPorIdCompartido(periodo)).thenReturn(Optional.of(new PeriodoServicio(periodo,empresa,fecha,fecha,true,inicio,inicio)));
+        when(registro.empresaCompartida(empresa)).thenReturn(Optional.of(new EmpresaOperadora(empresa,null,"Empresa sintética",null,true,inicio,inicio)));
         when(rutas.versionPorId(version)).thenReturn(Optional.of(new RutaVersion(version,UUID.randomUUID(),1,null,inicio,inicio,null,inicio)));
         when(vehiculos.vinculoPorId(vv)).thenReturn(Optional.of(new VinculoVehiculoEmpresa(vv,v,empresa,fecha,null,true,inicio,inicio)));
         when(registro.vinculoPorId(vp)).thenReturn(Optional.of(new VinculoPersonaEmpresa(vp,p,empresa,fecha,null,true,inicio,inicio)));
@@ -28,6 +29,8 @@ class ReferenciasJornadasTests {
     @Test void periodoYVersionAceptanLimitesInclusivosEnZonaBoliviana() {
         referencias.validarProgramacion(periodo,version,inicio);
         assertThat(referencias.fechaServicio(inicio)).isEqualTo(fecha);
+        verify(registro,never()).periodoPorId(any());          // nunca la lectura sin bloqueo al programar
+        verify(registro,never()).empresa(any(),anyBoolean());
     }
     @Test void rechazaPeriodoYVersionFueraDeVigencia() {
         assertThatThrownBy(() -> referencias.validarProgramacion(periodo,version,inicio.plusSeconds(86400))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("periodo");
