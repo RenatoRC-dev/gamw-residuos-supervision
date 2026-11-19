@@ -228,7 +228,9 @@ class ReprogramacionOperadorNavegadorIT extends IntegracionPostgresV8 {
             assertThat(contar("SELECT count(*) FROM jornada WHERE jornada_antecedente_id=?",je)).isZero();
             assertThat(jdbc.queryForList("SELECT * FROM evento_ejecucion_jornada WHERE jornada_id=?",je)).isEqualTo(eventosJeAntes);
             assertThat(contar("SELECT count(*) FROM jornada WHERE periodo_servicio_id=?",periodoA)).as("ningún intento inválido crea jornada").isEqualTo(5);
-            assertThat(contar("SELECT count(*) FROM reprogramacion_autorizada")).isEqualTo(2);
+            // Base compartida de la JVM: se cuentan solo las reprogramaciones de los fixtures de esta prueba.
+            assertThat(contar("SELECT count(*) FROM reprogramacion_autorizada r JOIN jornada j ON j.id=r.jornada_antecedente_id WHERE j.periodo_servicio_id=?",periodoA))
+                .as("ningún intento inválido registra reprogramaciones").isEqualTo(2);
 
             // Concurrencia: dos sucesoras distintas para el mismo antecedente → exactamente una.
             String rutaC="/api/empresa/jornadas/"+jc+"/reprogramaciones";

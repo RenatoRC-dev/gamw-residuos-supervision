@@ -46,9 +46,16 @@ jobs:
           exit 1
       - name: PostgreSQL 16 y PostGIS (solo binarios; el clúster lo crea la prueba)
         run: |
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends postgresql-16 postgresql-16-postgis-3
-          sudo systemctl stop postgresql || true
+          # H-10: los espejos apt devolvieron HTTP 503 de forma intermitente. Reintento acotado de toda la instalación y
+          # anotación explícita de INFRAESTRUCTURA (no de la aplicación) si se agotan los intentos. Mismo PostgreSQL/PostGIS.
+          for i in 1 2 3; do
+            if sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends postgresql-16 postgresql-16-postgis-3; then
+              sudo systemctl stop postgresql || true; exit 0
+            fi
+            echo "Instalación apt falló (intento $i); reintentando"; sleep $((i * 30))
+          done
+          echo "::error title=Infraestructura apt no disponible::No se pudieron instalar postgresql-16/postgis desde apt tras 3 intentos; las pruebas no se ejecutaron (no es un fallo de la aplicación)."
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version-file: apps/web/.node-version

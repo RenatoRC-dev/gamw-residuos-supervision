@@ -2,7 +2,7 @@
 
 > Conteo vigente tras los cortes CU-22, CU-20, CU-26, CU-11/12 (§13) y CU-24 (§14). **IMPLEMENTED 6 (01, 11, 12, 22, 24, 29) · PARTIAL 21 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1.** «IMPLEMENTED» = verificación técnica automatizada, NO aceptación institucional del GAMW. CU-26 y CU-20 permanecen PARTIAL (solo subconjuntos verificados, §11-12). Conteos anteriores (históricos, ya no vigentes): 5/22/3/1 tras CU-11/12 y **3/24/3/1** antes de ellos. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
 
-**Naturaleza:** auditoría de solo lectura (no se implementó nada). Evidencia = rutas de archivos del repositorio y resultados ya ejecutados en esta campaña.
+**Naturaleza:** nació como auditoría de solo lectura; las secciones §10 en adelante registran cortes posteriores con implementación y pruebas. Evidencia = rutas de archivos del repositorio y resultados ya ejecutados en esta campaña.
 **Distinción obligatoria:** *verificación técnica automatizada* ≠ *aceptación institucional*. Ningún CU está aceptado por el GAMW.
 Fuentes: `docs/context/GAMW_BASELINE_FUNCIONAL_CU01_CU31_v1_0.md` (actores), `docs/context/04_REQUIREMENTS_TRACEABILITY_GAPS.md` (RF↔CU), código en `backend/`, `apps/web/`, `apps/mobile/`.
 
@@ -18,12 +18,12 @@ Fuentes: `docs/context/GAMW_BASELINE_FUNCIONAL_CU01_CU31_v1_0.md` (actores), `do
 
 | Estado | Cantidad | CU |
 |---|---|---|
-| IMPLEMENTED | **3** | 01, 22, 29 (22 desde el corte `CU-22 A4`, ver §10) |
-| PARTIAL | **24** | 02, 03, 04, 05, 06, 07, 09, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 26, 27, 28 |
+| IMPLEMENTED | **6** | 01, 11, 12, 22, 24, 29 (22 desde §10; 11/12 desde §13; 24 desde §14) |
+| PARTIAL | **21** | 02, 03, 04, 05, 06, 07, 09, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 26, 27, 28 |
 | INSTITUTIONALLY BLOCKED | **3** | 08, 25, 31 (31: código listo, acceso denegado por D1) |
 | NOT IMPLEMENTED | **1** | 30 |
 
-Total 31. **IMPLEMENTED no implica aceptación** (01 y 29 siguen sujetos a D1/aceptación GAMW).
+Total 31 (verificado fila por fila contra la tabla de la sección siguiente, corte de remediación §21). **IMPLEMENTED no implica aceptación**: es verificación técnica automatizada; ningún CU está aceptado por el GAMW. Conteo histórico de esta tabla antes de los cortes CU-11/12 y CU-24: 3 / 24 / 3 / 1.
 
 ## 3. Inventario de pruebas realmente ejecutadas (esta campaña, local/CI)
 
@@ -300,7 +300,7 @@ Verificado (local): `DesviosDetencionesNavegadorIT` 1/1 (Chromium real + REST re
 | Cero candidatos / insuficiencia / truncamiento | **Verificado** | «Sin señales listadas…» con REVISION_TECNICA; 0 y 1 muestra: EVIDENCIA_INSUFICIENTE; 5001 muestras: 5000 analizadas, REVISION_PARCIAL y candidata acotada a la muestra 5000 |
 | Parámetros inválidos, acceso, revocación | **Verificado** | 0, negativos, NaN, >1 000 000, texto = 400; UI sin petición con radio 0; inexistente 404; sin token 401/403; A4, cuenta sin permiso y permiso de OTRA revisión = 403 sin datos; revocado = 403 |
 | Sin veredictos automáticos | **Verificado** | todas POR_REVISAR; detalles «no prueba camión detenido», «no tramo recorrido ni incumplimiento»; sin fraude, vehículo detenido, recolección omitida, sanción ni cumplimiento |
-| Contexto de incidencias asociadas | **Brecha de aceptación** | la revisión no muestra incidencias (la UI lo declara); no existe asociación autorizada que mostrar en este corte |
+| Contexto de incidencias asociadas | **Actualizado en §21 (H-08)** | antes: brecha. Ahora: contexto de solo lectura de las incidencias ya registradas de la jornada, con el permiso existente CORRECTIVA_CONSULTAR, sin asociación automática ni inferencia causal; la aceptación institucional sigue pendiente |
 | Criterios institucionales y GPS físico | **PENDING** | no resueltos |
 
 ## 20. Intento de validación física CU-13 / CA-4A-21 (2026-11-19) — **BLOCKED**
@@ -310,6 +310,27 @@ Verificado (local): `DesviosDetencionesNavegadorIT` 1/1 (Chromium real + REST re
 - CI: el Browser E2E de `43f0ca4` falló en el paso de instalación de PostgreSQL/PostGIS por `apt` (código 100; fallo externo de paquetes, las pruebas no llegaron a ejecutarse); no es una regresión de la aplicación y no se cambió código para sortearlo.
 - CU-13 sigue **PARTIAL** (sin cambio de clasificación).
 
+## 21. Remediación de la auditoría estática 2026-11-19 (H-01…H-12)
+
+Base `4dd9d75`. Pruebas locales: backend focal (eventos/GPS/Flyway, autenticación, revisión GPS) y E2E de navegador con base compartida; web `tsc` + build + vitest. **Flutter no se ejecutó localmente** (el guardián del entorno bloquea comandos Flutter): `flutter analyze`/`flutter test` y la compilación Kotlin quedan a cargo de CI (`verify.yml`; `android-emulator-qa.yml` ahora se dispara también con cambios en el código nativo).
+
+| Hallazgo | Estado | Corrección | Prueba / evidencia |
+|---|---|---|---|
+| H-01 revisión GPS obsoleta | **FIXED** | cancelar e invalidar consultas al cambiar jornada, tipo, umbral o sesión; clave inmutable de consulta; 401 cierra sesión | `PaginaRevisionGps.test.tsx` 6/6 (respuestas demoradas, cambios rápidos, error tardío, desmontaje, 401/403); E2E CU-17/18/19 |
+| H-02 notificaciones bloqueaban GPS | **FIXED (sin QA física)** | `POST_NOTIFICATIONS` ya no condiciona el servicio en primer plano; se advierte si el aviso puede no mostrarse | `captura_gps_android_test.dart` (combinaciones FINE/notificaciones); pendiente CI Flutter y dispositivo real |
+| H-03 DELETE de INICIO/FIN | **FIXED** | `V20__eventos_ejecucion_sin_borrado.sql`: DELETE y TRUNCATE bloqueados (eventos) y TRUNCATE (GPS); V7 intacta | `EventosEjecucionIT` (UPDATE/DELETE/TRUNCATE fallan; FIN posterior e idempotencia siguen); Flyway limpio |
+| H-04 solo ubicación aproximada | **FIXED (sin QA física)** | GPS_PROVIDER exige FINE; con solo COARSE no se inicia ni se declara captura y se informa el motivo | pruebas Dart de decisión y canal; pendiente dispositivo real |
+| H-05 fuerza bruta en login | **FIXED (técnico) + decisión de despliegue pendiente** | freno por (origen, nombre) y por origen, ventana configurable, 429 + Retry-After uniforme; BCrypt también para cuentas inexistentes/inactivas. No es bloqueo de cuenta. Varios nodos/proxy: requiere control de infraestructura | `LimiteIntentosAccesoHttpTests` 3/3, `LimitadorIntentosAccesoTests` 2/2, `ServicioAutenticacionTests` 8/8 |
+| H-06 mapa base de demostración | **FIXED (técnico) + proveedor pendiente** | en producción sin `VITE_MAP_STYLE_URL`: estilo local sin teselas externas y aviso; tabla intacta; `.env.example` documentado | `mapConfig.test.ts` 3/3; build OK |
+| H-07 incidencias offline CU-14 | **BLOCKED (política institucional)** | sin cola durable (no aprobada); mensaje aclarado: la solicitud pendiente solo se conserva con el formulario abierto | revisión de código; sin cambio de alcance |
+| H-08 contexto de incidencias CU-19 | **FIXED (técnico)** | consulta de solo lectura con endpoint y permiso existentes (CORRECTIVA_CONSULTAR); sin asociación ni causalidad | `DesviosDetencionesNavegadorIT` (sin permiso: no expone; con permiso: muestra; señales intactas) |
+| H-09 matriz contradictoria | **FIXED** | §2 y conclusión alineadas con 6/21/3/1, conteos históricos rotulados | revisión de las 31 filas |
+| H-10 apt 503 en CI | **RISK (infraestructura)** | sin cambio en Browser E2E (no se reemplaza PostgreSQL/PostGIS ni se usa Docker); la falla fue externa | runs posteriores en verde |
+| H-11 marcadores WebGL | **GAP** | se mantiene: las pruebas verifican tablas y contención del mapa, no píxeles; no se afirma verificación visual | — |
+| H-12 GPS físico | **BLOCKED** | sin dispositivo (§20); el emulador no sustituye la QA de campo | — |
+
+Riesgo adicional registrado (no corregido, requiere decisión): las tablas `jornada`, `asignacion_jornada` y `ruta_version` protegen UPDATE pero no DELETE de filas sin evidencia dependiente, y el rol de la aplicación es dueño del esquema (podría desactivar triggers). Separar rol de migración y rol de ejecución es decisión de despliegue.
+
 ## 9. Distinción final
 
-Los 2 CU «IMPLEMENTED» lo son en sentido **técnico**. Ningún CU tiene aceptación institucional; GPS físico, batería y comportamiento por fabricante siguen **PENDING** (QA en dispositivo real).
+Los 6 CU «IMPLEMENTED» (01, 11, 12, 22, 24, 29) lo son en sentido **técnico**. Ningún CU tiene aceptación institucional; GPS físico, batería y comportamiento por fabricante siguen **PENDING** (QA en dispositivo real).

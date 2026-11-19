@@ -174,11 +174,15 @@ class TrayectoriaMunicipalNavegadorIT extends IntegracionPostgresV8 {
         assertThat(pag1.get("siguiente").asInt()).isEqualTo(2);
         String corte=pag1.get("corteRecepcion").asText();
         UUID tardia=UUID.randomUUID();
-        posicion(jvarias,tardia,conductor,base.minusSeconds(100),Instant.now().truncatedTo(ChronoUnit.MICROS),-63.0,-17.6,11);   // llega después del corte
+        // Recepción estrictamente posterior al corte (el intervalo del corte es cerrado: una recepción EXACTAMENTE en el corte se incluye,
+        // y con relojes de baja resolución Instant.now() podía coincidir con el corte y volver la prueba intermitente).
+        Instant recepcionTardia=Instant.parse(corte).plus(1,ChronoUnit.MICROS);
+        posicion(jvarias,tardia,conductor,base.minusSeconds(100),recepcionTardia,-63.0,-17.6,11);   // llega después del corte
         var pag2=json.readTree(get("/api/trayectorias/jornadas/"+jvarias+"?limite=2&desplazamiento=2&corteRecepcion="+corte,tm).body()).get("seguimiento");
         List<String> ids2=new ArrayList<>(); pag2.get("trayectoria").get("features").forEach(f -> ids2.add(f.get("properties").get("capturaId").asText()));
         assertThat(ids2).as("corte estable: la recepción posterior no desplaza páginas").containsExactly(c3a.toString(),c3b.toString());
         assertThat(pag2.get("siguiente").isNull()).isTrue();
+        while(!Instant.now().isAfter(recepcionTardia)) Thread.onSpinWait();   // condición de reloj (no espera arbitraria): la recepción ya no es futura
         var fresca=json.readTree(get("/api/trayectorias/jornadas/"+jvarias,tm).body()).get("seguimiento").get("trayectoria").get("features");
         assertThat(fresca).hasSize(5);
         assertThat(fresca.get(0).get("properties").get("capturaId").asText()).as("la tardía se ordena por su captura, no por su recepción").isEqualTo(tardia.toString());
