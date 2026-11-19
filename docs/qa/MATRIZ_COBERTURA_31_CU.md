@@ -51,7 +51,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 13 Ejecutar jornada | RF-08/09/10/11 | A5 | `EjecucionJornadasController`, `PosicionesGpsController`, `MisJornadasController`, V7–V9 | — | `pagina_operacion.dart`, SQLite, `ServicioCapturaGps.kt`, cola/sync | ITJ `EjecucionAutenticadaIT`, `EventosEjecucionIT`, `PosicionesGpsIT`, `CadenaOperativaFiscalizacionIT`; FT `test/auth/pagina_operacion_test.dart`; EMU `qa_emulador/cadena_offline_emulador_test.dart` (**GPS sintético**, no UI) | **PARTIAL**: GPS nativo, batería, segundo plano, fabricantes y CA-4A-21 sin QA física; el emulador no maneja la UI |
 | 14 Incidencia | RF-16 | A3/A4/A5 según ámbito | `ActuacionesController`, `GestionarActuaciones` | `PaginaCorrectivas.tsx` (lectura) | `panel_incidencias.dart` | REST en `FlujoMunicipalNavegadorIT` (alta, duplicado, tardía 409); móvil/web alta: **—** | **PARTIAL**: móvil sin pruebas; A4 y captura tardía/offline sin política |
 | 15 Monitorear posición | RF-12 | A3 / A4 | `MonitoreoController` | `PaginaMonitoreo.tsx` | — | E2E `flujo-monitoreo.test.mjs` vía `MonitoreoMunicipalNavegadorIT` (UI A3 + REST), §15 | **PARTIAL** (A3 verificado técnicamente, §15): A4 sigue bloqueado por D1 (sin permiso; 403) y falta QA de continuidad con ejecución real |
-| 16 Trayectoria GPS | RF-12 | A3 / **A4** | `TrayectoriasController`, `ConsultarTrayectoriasAutorizadas` | `PaginaTrayectorias.tsx`, `MapaTrayectoria.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E `flujo-municipal.test.mjs` (tabla, orden, hueco, «inferidos») | **PARTIAL**: A3 verificado; A4 sin acceso (D1); el lienzo del mapa/teselas **no** se verifica |
+| 16 Trayectoria GPS | RF-12 | A3 / **A4** | `TrayectoriasController`, `ConsultarTrayectoriasAutorizadas` | `PaginaTrayectorias.tsx`, `MapaTrayectoria.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E `flujo-municipal.test.mjs` (tabla, orden, hueco, «inferidos»); E2E `flujo-trayectoria.test.mjs` vía `TrayectoriaMunicipalNavegadorIT` (§16) | **PARTIAL**: A3 verificado técnicamente (§16); A4 sin acceso (D1 pendiente); el lienzo del mapa/teselas y los marcadores **no** se verifican |
 | 17 Continuidad/integridad GPS | RF-13 | A3 | `RevisionGpsController`, `RevisarEvidenciaGps` | `PaginaRevisionGps.tsx` | — | **—** | **PARTIAL**: sin pruebas; umbrales provisionales por aprobar |
 | 18 Coincidencias | RF-14 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; vigencia/precisión de puntos |
 | 19 Desvíos y detenciones | RF-15 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; candidatos técnicos sin dictamen |
@@ -224,6 +224,24 @@ Verificado (local): `MonitoreoMunicipalNavegadorIT` 1/1 (Chromium real + REST re
 | D1: A4 sin permisos de monitoreo | **Preservado** | A4 no tiene concesión de monitoreo; no se concedió ninguno |
 | Mapa: contención, referencia histórica seleccionable y respaldo tabular | **Verificado parcialmente** | región del mapa contenida y selector de ruta; los **marcadores WebGL no se afirman por DOM** (no verificados) |
 | Continuidad con ejecución móvil real (CU-13) | **PENDING** | no cubierto en este corte |
+
+## 16. Actualización — corte CU-16 (trayectoria GPS municipal) · RF-12
+
+Verificado (local): `TrayectoriaMunicipalNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado) con `apps/web/e2e/flujo-trayectoria.test.mjs`. Sin cambios de código de producción: no se detectó ningún defecto. Conteos de la matriz sin cambio (CU-16 permanece PARTIAL). Datos sintéticos sembrados por SQL.
+
+| Criterio | Estado | Prueba |
+|---|---|---|
+| Cero, una y varias muestras | **Verificado** | UI: mensaje sin fabricar ubicación ni concluir incumplimiento; «Una muestra aislada no representa un recorrido continuo»; 4 filas |
+| Orden determinista por captura, recepción tardía, empate | **Verificado** | UI y REST: orden por `capturado_en`, desempate `captura_id`; la capturada primero y recibida última conserva su hora de recepción; muestra tardía posterior se ordena por su captura |
+| [longitud, latitud], marcas de tiempo, precisión y asignación original | **Verificado** | REST (GeoJSON) y columnas de la tabla |
+| RutaVersion histórica tras cambios posteriores de ruta | **Verificado** | v1 cerrada y v2 abierta después; las jornadas anteriores devuelven v1 (2 puntos) y la nueva v2 (3 puntos), UI y REST |
+| Paginación, corte de recepción estable, límites | **Verificado** | UI con 505 muestras: 500 + 5, «Vista paginada…», sin repetidas, última página con «siguiente» deshabilitado; REST: una recepción posterior al corte no desplaza las páginas; límites/corte futuro/formato inválido = 400 |
+| Intervalos sin muestras no se muestran como recorrido | **Verificado (rotulado)** | texto «no acreditan recorrido»; no se unen puntos por defecto |
+| Línea inferida | **Verificado** | apagada por defecto; al activarla, rótulo «conexiones visuales inferidas, no recorrido físico confirmado» |
+| Acceso, inexistentes y revocación | **Verificado** | sin token 401/403; A4 y cuenta sin permiso = 403 (incluso antes de revelar existencia) sin datos; jornada inexistente 404; UUID inválido 400; permiso revocado = 403 |
+| Consulta no edita ni dictamina | **Verificado** | solo peticiones GET desde la UI; recuento de GPS/eventos intacto; evidencia inmutable; sin veredicto |
+| D1: A4 sin permisos de trayectoria | **Preservado** | no se concedió ninguno |
+| Mapa | **Parcial** | contención del mapa verificada; **marcadores/líneas WebGL no verificados** sin evidencia visual |
 
 ## 9. Distinción final
 
