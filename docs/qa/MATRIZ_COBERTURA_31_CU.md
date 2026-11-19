@@ -52,7 +52,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 14 Incidencia | RF-16 | A3/A4/A5 según ámbito | `ActuacionesController`, `GestionarActuaciones` | `PaginaCorrectivas.tsx` (lectura) | `panel_incidencias.dart` | REST en `FlujoMunicipalNavegadorIT` (alta, duplicado, tardía 409); móvil/web alta: **—** | **PARTIAL**: móvil sin pruebas; A4 y captura tardía/offline sin política |
 | 15 Monitorear posición | RF-12 | A3 / A4 | `MonitoreoController` | `PaginaMonitoreo.tsx` | — | E2E `flujo-monitoreo.test.mjs` vía `MonitoreoMunicipalNavegadorIT` (UI A3 + REST), §15 | **PARTIAL** (A3 verificado técnicamente, §15): A4 sigue bloqueado por D1 (sin permiso; 403) y falta QA de continuidad con ejecución real |
 | 16 Trayectoria GPS | RF-12 | A3 / **A4** | `TrayectoriasController`, `ConsultarTrayectoriasAutorizadas` | `PaginaTrayectorias.tsx`, `MapaTrayectoria.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E `flujo-municipal.test.mjs` (tabla, orden, hueco, «inferidos»); E2E `flujo-trayectoria.test.mjs` vía `TrayectoriaMunicipalNavegadorIT` (§16) | **PARTIAL**: A3 verificado técnicamente (§16); A4 sin acceso (D1 pendiente); el lienzo del mapa/teselas y los marcadores **no** se verifican |
-| 17 Continuidad/integridad GPS | RF-13 | A3 | `RevisionGpsController`, `RevisarEvidenciaGps` | `PaginaRevisionGps.tsx` | — | **—** | **PARTIAL**: sin pruebas; umbrales provisionales por aprobar |
+| 17 Continuidad/integridad GPS | RF-13 | A3 | `RevisionGpsController`, `RevisarEvidenciaGps` | `PaginaRevisionGps.tsx` | — | E2E `flujo-integridad-gps.test.mjs` vía `IntegridadGpsNavegadorIT` (§17) | **PARTIAL**: A3 verificado técnicamente con umbrales provisionales explícitos (§17); pendientes umbrales institucionales (PENDING-04) y validación con GPS físico |
 | 18 Coincidencias | RF-14 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; vigencia/precisión de puntos |
 | 19 Desvíos y detenciones | RF-15 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; candidatos técnicos sin dictamen |
 | 20 Inspección y evidencias | RF-17 | A3 | `FiscalizacionController` (`POST …/inspecciones`, JSON y multipart), `GestionarFiscalizacion.inspeccionar`, `PoliticaEvidenciasCampo` | `PaginaFiscalizacion.tsx` + `FormularioInspeccion.tsx` | — | ITJ `InspeccionCampoIT` (4); E2E `flujo-inspeccion.test.mjs` (UI, JWT) vía `FlujoMunicipalNavegadorIT` | **PARTIAL** (subconjunto sin fotografías verificado, §11): fotos/archivos (CA-20-03/04), FA-02/FA-03 y política PENDING-09 sin verificar o bloqueados |
@@ -242,6 +242,25 @@ Verificado (local): `TrayectoriaMunicipalNavegadorIT` 1/1 (Chromium real + REST 
 | Consulta no edita ni dictamina | **Verificado** | solo peticiones GET desde la UI; recuento de GPS/eventos intacto; evidencia inmutable; sin veredicto |
 | D1: A4 sin permisos de trayectoria | **Preservado** | no se concedió ninguno |
 | Mapa | **Parcial** | contención del mapa verificada; **marcadores/líneas WebGL no verificados** sin evidencia visual |
+
+## 17. Actualización — corte CU-17 (continuidad e integridad GPS) · RF-13
+
+Verificado (local): `IntegridadGpsNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado) con `apps/web/e2e/flujo-integridad-gps.test.mjs`. Sin cambios de código de producción: no se detectó ningún defecto. Conteos sin cambio (CU-17 permanece PARTIAL). Los umbrales son **provisionales y explícitos en la prueba** (separación 60 s, precisión 50 m, velocidad 120 km/h); no se inventó ninguna política (PENDING-04). CU-18/19 no se tocaron.
+
+| Criterio | Estado | Prueba |
+|---|---|---|
+| Huecos antes (INICIO), entre y después (FIN) de capturas | **Verificado** | INICIO_SIN_MUESTRAS 200 s, dos INTERVALO_SIN_MUESTRAS, FIN_SIN_MUESTRAS_RECIENTES 600 s (UI y REST) |
+| Recepción diferida/anterior, orden cronológico, precisión baja, mismo instante, salto improbable | **Verificado** | RECEPCION_DIFERIDA 170 s, RECEPCION_ANTERIOR_CAPTURA −5 s, orden por captura con desempate, PRECISION_LIMITADA 80 m, POSICIONES_DISTINTAS_MISMO_INSTANTE, SALTO_POR_REVISAR > 120 km/h |
+| Cero o insuficientes muestras | **Verificado** | EVIDENCIA_INSUFICIENTE (0 y 1 muestra), sin veredicto |
+| Límites exactos | **Verificado** | hueco = 60 s y precisión = 50 m no son señal; con 59,9 / 49,9 sí |
+| Metadatos de dispositivo | **Verificado (informado como no disponible)** | el texto es «NO DISPONIBLES; no se inventan» (no existe un valor UNKNOWN literal); no se presenta GPS como auténtico |
+| Captura tardía | **Verificado** | el recálculo cambia señales (el intervalo de 70 s se divide; la tardía aparece como diferida) y la evidencia original queda idéntica |
+| Límite de 5000 muestras | **Verificado (REST)** | 5001 disponibles, 5000 analizadas, `parcial` y REVISION_PARCIAL; no se probó en la UI |
+| Parámetros inválidos / tipo / inexistente | **Verificado** | 0, negativos, NaN, Infinity, >1 000 000, texto = 400; tipo no admitido 400; jornada inexistente 404; UI sin petición con umbral 0 |
+| Acceso y revocación | **Verificado** | sin token 401/403; A4, cuenta sin permiso y permiso de OTRA revisión = 403 sin datos; revocado = 403 |
+| Huecos no se atribuyen a Internet, detención, fraude o incumplimiento | **Verificado** | todas las señales POR_REVISAR; textos «no se conoce la causa», «no equivale a GPS desactivado…»; sin veredictos |
+| Solo lectura | **Verificado** | UI solo GET; recuento de GPS igual; evidencia inmutable |
+| Umbrales institucionales (PENDING-04) y GPS físico | **PENDING** | no resueltos |
 
 ## 9. Distinción final
 
