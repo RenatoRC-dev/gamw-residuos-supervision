@@ -91,6 +91,9 @@ class FlujoMunicipalNavegadorIT extends IntegracionPostgresV8 {
         UUID uSolo=usuario(persona("Solicitante sin verificación"),soloSolicita);
         UUID uOp=usuario(persona("Operador periodo A"),operador);
         UUID uOpB=usuario(persona("Operador otro periodo"),operadorOtro);
+        String inspector="flujo-insp-"+sufijo;
+        UUID uInsp=usuario(persona("Inspector sintético"),inspector);
+        conceder(uInsp,"INSPECCION_REGISTRAR","FISCALIZACION_CONSULTAR","JORNADAS_CONSULTAR"); // sin EMITIR: la inspección no es un resultado
         conceder(uFiscal,"TRAYECTORIA_JORNADA_CONSULTAR","FISCALIZACION_CONSULTAR","JORNADAS_CONSULTAR"); // sin CORRECTIVA_/RECLAMO_/EMITIR
         conceder(uFc,"CORRECTIVA_CONSULTAR","CORRECTIVA_SOLICITAR","CORRECTIVA_VERIFICAR");
         conceder(uSolo,"CORRECTIVA_CONSULTAR","CORRECTIVA_SOLICITAR"); // puede solicitar, NO verificar
@@ -234,6 +237,28 @@ class FlujoMunicipalNavegadorIT extends IntegracionPostgresV8 {
             // Evidencia inmutable
             assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> jdbc.update("UPDATE verificacion_correctiva SET observaciones='alterada' WHERE accion_id=?",accion))).isNotNull();
             assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> jdbc.update("DELETE FROM respuesta_correctiva WHERE accion_id=?",accion))).isNotNull();
+
+            // 6) CU-20 (A3): alta de inspección SIN fotografías por la UI (fallo de transporte + reintento idempotente), visible en expediente e historial
+            java.time.LocalDateTime local=java.time.LocalDateTime.now(java.time.ZoneOffset.ofHours(-4)).minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
+            String observacionInspeccion="Observación de campo sintética CU-20 "+sufijo;
+            env.put("GAMW_WEB_TEST_INSPECTOR",inspector);
+            env.put("GAMW_WEB_TEST_FECHA_INSPECCION",local.toString().length()==16?local+":00":local.toString());
+            env.put("GAMW_WEB_TEST_OBSERVACION_INSPECCION",observacionInspeccion);
+            nodo(directorio,"e2e/flujo-inspeccion.test.mjs",env,Map.of());
+            assertThat(contar("SELECT count(*) FROM inspeccion WHERE jornada_id=?",jornada)).as("envío fallido + reintento = UNA inspección").isEqualTo(1);
+            var filaInspeccion=jdbc.queryForMap("SELECT id,inspector_usuario_id,realizada_en,registrada_en,observaciones,lugar_descripcion,ST_X(geometria) AS lon,ST_Y(geometria) AS lat FROM inspeccion WHERE jornada_id=?",jornada);
+            assertThat(filaInspeccion.get("inspector_usuario_id")).as("autor = sesión autenticada").isEqualTo(uInsp);
+            assertThat(filaInspeccion.get("observaciones")).isEqualTo(observacionInspeccion);
+            assertThat(((Timestamp) filaInspeccion.get("realizada_en")).toInstant()).as("fecha declarada en Bolivia (UTC−04:00)").isEqualTo(local.toInstant(java.time.ZoneOffset.ofHours(-4)));
+            assertThat(((Timestamp) filaInspeccion.get("registrada_en")).toInstant()).as("registro del servidor, posterior a la fecha declarada").isAfter(((Timestamp) filaInspeccion.get("realizada_en")).toInstant());
+            assertThat(((Number) filaInspeccion.get("lon")).doubleValue()).isEqualTo(-10.75);
+            assertThat(((Number) filaInspeccion.get("lat")).doubleValue()).isEqualTo(20.25);
+            assertThat(contar("SELECT count(*) FROM evidencia_inspeccion WHERE inspeccion_id=?",filaInspeccion.get("id"))).as("fotografías deshabilitadas").isZero();
+            assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> jdbc.update("UPDATE inspeccion SET observaciones='alterada' WHERE jornada_id=?",jornada))).isNotNull();
+            String tInsp=token(inspector);
+            var expedienteInspeccion=json.readTree(api("GET","/api/fiscalizacion/jornadas/"+jornada,tInsp,null).body());
+            assertThat(expedienteInspeccion.get("inspecciones").size()).isEqualTo(1);
+            assertThat(expedienteInspeccion.get("fiscalizacion").isNull()).as("la inspección no crea resultado de fiscalización").isTrue();
         } finally {
             servidor.descendants().forEach(ProcessHandle::destroy); servidor.destroy();
         }

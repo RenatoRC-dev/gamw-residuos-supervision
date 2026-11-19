@@ -1,4 +1,6 @@
-# Matriz de cobertura de los 31 CU — auditoría funcional (baseline `6db0d1e`)
+# Matriz de cobertura de los 31 CU — auditoría funcional (baseline `6db0d1e`; actualizada en `c1f0ce3` [CU-22] y en el corte CU-20)
+
+> Conteo vigente tras los cortes CU-22 y CU-20: **IMPLEMENTED 3 · PARTIAL 24 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1**. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
 
 **Naturaleza:** auditoría de solo lectura (no se implementó nada). Evidencia = rutas de archivos del repositorio y resultados ya ejecutados en esta campaña.
 **Distinción obligatoria:** *verificación técnica automatizada* ≠ *aceptación institucional*. Ningún CU está aceptado por el GAMW.
@@ -26,7 +28,7 @@ Total 31. **IMPLEMENTED no implica aceptación** (01 y 29 siguen sujetos a D1/ac
 ## 3. Inventario de pruebas realmente ejecutadas (esta campaña, local/CI)
 
 Backend 199 (surefire, 1 omitida Android) + IT aislados; navegador real: `FlujoMunicipalNavegadorIT` (flujo municipal + correctivo), `AutenticacionWebIT`, `RegistroPlanificacionWebIT`; web vitest 64; Flutter CI (analyze + test); emulador Android (cadena offline, GPS **sintético** en el almacén local). Informe: `docs/qa/QA_TECNICA_GAMW_20261118.md`.
-**Sin ninguna prueba automatizada encontrada** (búsqueda en `backend/src/test`, `apps/web`, `apps/mobile/test`): `ReclamosController`, `PuntosCriticosController`, `RevisionGpsController`/`RevisarEvidenciaGps`, `ReferenciasEspacialesController`, `MonitoreoController` (solo comprobación de cierre en `ConsultaSeguimientoGpsIT.java:109`), `AdministracionIdentidadController`/`AdministrarIdentidad`, `POST /api/fiscalizacion/jornadas/{id}/inspecciones`, `PanelIncidencias` (Flutter), `PaginaCorrectivasEmpresa` y `PaginaReprogramacionEmpresa` (web).
+**Sin ninguna prueba automatizada encontrada** (búsqueda en `backend/src/test`, `apps/web`, `apps/mobile/test`): `ReclamosController`, `PuntosCriticosController`, `RevisionGpsController`/`RevisarEvidenciaGps`, `ReferenciasEspacialesController`, `MonitoreoController` (solo comprobación de cierre en `ConsultaSeguimientoGpsIT.java:109`), `AdministracionIdentidadController`/`AdministrarIdentidad`, `PanelIncidencias` (Flutter) y `PaginaReprogramacionEmpresa` (web). *(Actualizado: el alta de inspección sin fotografías, CU-20, y `PaginaCorrectivasEmpresa`, CU-22, ya tienen pruebas; ver §10 y §11.)*
 
 ## 4. Matriz CU × RF × Actor × componentes × pruebas × estado
 
@@ -53,9 +55,9 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 17 Continuidad/integridad GPS | RF-13 | A3 | `RevisionGpsController`, `RevisarEvidenciaGps` | `PaginaRevisionGps.tsx` | — | **—** | **PARTIAL**: sin pruebas; umbrales provisionales por aprobar |
 | 18 Coincidencias | RF-14 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; vigencia/precisión de puntos |
 | 19 Desvíos y detenciones | RF-15 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; candidatos técnicos sin dictamen |
-| 20 Inspección y evidencias | RF-17 | A3 | `FiscalizacionController` (`POST …/inspecciones`, multipart), `PoliticaEvidenciasCampo` | `PaginaFiscalizacion.tsx` (formulario) | — | **—** (el alta no se prueba; solo lectura en `CadenaOperativaFiscalizacionIT`) | **PARTIAL**: alta sin pruebas; fotos bloqueadas por política (apagadas por defecto) |
+| 20 Inspección y evidencias | RF-17 | A3 | `FiscalizacionController` (`POST …/inspecciones`, JSON y multipart), `GestionarFiscalizacion.inspeccionar`, `PoliticaEvidenciasCampo` | `PaginaFiscalizacion.tsx` + `FormularioInspeccion.tsx` | — | ITJ `InspeccionCampoIT` (4); E2E `flujo-inspeccion.test.mjs` (UI, JWT) vía `FlujoMunicipalNavegadorIT` | **PARTIAL** (subconjunto sin fotografías verificado, §11): fotos/archivos (CA-20-03/04), FA-02/FA-03 y política PENDING-09 sin verificar o bloqueados |
 | 21 Fiscalizar y resultado | RF-18 | A3 | `GestionarFiscalizacion` | `PaginaFiscalizacion.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E expediente (lectura) | **PARTIAL / emisión bloqueada**: catálogo oficial PENDING-05 vacío; emisión en UI no probada; rectificación no definida |
-| 22 Acciones correctivas | RF-19 | A3 (+A4 responde) | `ActuacionesController`, `CorrectivasEmpresaController`, `AtenderCorrectivasEmpresa` | `PaginaCorrectivas.tsx` ✔ solicitud; `PaginaCorrectivasEmpresa.tsx` | — | E2E `flujo-correctivo.test.mjs` (solicitud, UI, JWT); respuesta A4 **solo REST** en `FlujoMunicipalNavegadorIT` | **PARTIAL**: la **UI del operador (A4) no tiene prueba**; estados/plazos = institucional |
+| 22 Acciones correctivas | RF-19 | A3 (+A4 responde) | `ActuacionesController`, `CorrectivasEmpresaController`, `AtenderCorrectivasEmpresa` | `PaginaCorrectivas.tsx` ✔ solicitud; `PaginaCorrectivasEmpresa.tsx` | — | E2E `flujo-correctivo.test.mjs` fases 1 y 1b (solicitud A3 y **respuesta A4 por la UI**, JWT) + REST en `FlujoMunicipalNavegadorIT` | **IMPLEMENTED** (técnico, ver §10); estados/plazos/adjuntos = institucional |
 | 23 Verificar atención | RF-19 | A3 | `GestionarActuaciones.verificar` | `PaginaCorrectivas.tsx` | — | E2E fase 2 (UI) + REST (409/403) con categoría **sintética** | **PARTIAL / bloqueado en producción**: catálogo oficial inexistente |
 | 24 Reprogramar | RF-20 | **A4** | `ReprogramarJornadasOperador`, V16 | `PaginaReprogramacionEmpresa.tsx` | — | ITJ REST `AutorizacionOperativaV19IT`; ITD `JornadasIT`; E2E `RegistroPlanificacionWebIT` **dev-local por vía municipal** (cerrada en producción: 403) | **PARTIAL**: UI de producción (A4) sin pruebas; ejecutadas/fiscalizadas bloqueadas |
 | 25 Reporte ciudadano | RF-21 (GAP-01) | A6 externo | — | — | — | — | **INSTITUTIONALLY BLOCKED**: formulario público, privacidad y controles sin aprobar; RF por ampliar |
@@ -126,6 +128,26 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | A3 verifica luego en la UI con categoría **sintética** | E2E fase 2 |
 
 No hay defectos de producción confirmados en este corte. **No** se inventaron plazos, estados, adjuntos ni el procedimiento PENDING-07; la categoría de verificación es fixture de prueba. Pendiente institucional: estados/plazos de CU-22, adjuntos nuevos, rectificación, catálogo oficial (CU-23). Acuerdo GAMW: **PENDING** (solo verificación técnica).
+
+## 11. Actualización — corte CU-20 (inspección sin fotografías) · RF-17
+
+Verificado (local): `InspeccionCampoIT` 4/4 (JWT real, PostgreSQL/PostGIS aislado) + `FlujoMunicipalNavegadorIT` 1/1 con `apps/web/e2e/flujo-inspeccion.test.mjs` (Chromium real, REST real, planificación sembrada por SQL — **no** hecha por la UI).
+
+| Criterio CU-20 | Estado | Prueba |
+|---|---|---|
+| CA-20-01 registro con jornada válida | **Verificado (subconjunto sin fotos)** | `InspeccionCampoIT.registraObservacion…`; E2E UI |
+| CA-20-02 fecha, autor y observación originales conservados | **Verificado** | autor desde la sesión, `realizada_en` (Bolivia UTC−04:00) y `registrada_en` del servidor, observación y coordenadas [lon,lat] SRID 4326; inmutable (UPDATE/DELETE rechazados) |
+| CA-20-03 archivos permitidos asociados | **No verificado / bloqueado** | fotografías deshabilitadas (política PENDING-09 sin aprobar); no se inventan retención ni privacidad |
+| CA-20-04 archivo rechazado sin evidencia ficticia | **Verificado solo el rechazo** | con fotos deshabilitadas, el multipart con archivo → 409 sin inspección ni evidencia (`fotografiasPermanecenDeshabilitadas…`); validación de formatos/tamaño con política habilitada: sin prueba |
+| CA-20-05 inspección sin fotografías con datos mínimos | **Verificado** | mínima = fecha + observación (coordenadas opcionales) |
+| CA-20-06 no se reemplaza evidencia | **Verificado** | reintento idéntico = misma inspección (200, `registradaEn` igual); mismo `solicitudId` con otro contenido u otro actor = 409; UI: envío fallido + reintento = una fila |
+| CA-20-07 sin resultado de fiscalización automático | **Verificado** | `fiscalizacion`/`accion_correctiva` = 0; UI sin «Resultado humano registrado» ni veredicto |
+| CA-20-08 solo el fiscalizador autorizado | **Verificado** | sin `INSPECCION_REGISTRAR` (solo consulta / conductor) → 403; sin identidad 401/403; jornada inexistente 404 con permiso y 403 sin él |
+| E1 jornada inexistente · E3 datos incompletos | **Verificado** | 404; 400 por latitud/longitud fuera de rango, solo una coordenada, sin observación/fecha/solicitud, precisión de fecha, campo de identidad ajeno, adjunto sin archivo; UI: formulario inválido no emite petición |
+| Visible en expediente (CU-21) e historial (CU-29) | **Verificado** | expediente `inspecciones=1`, `fiscalizacion=null`; historial «Con registros (1)» con permiso propio (API y UI) |
+| FA-02 vínculo con incidencia/reclamo · FA-03 anexo posterior · retención/privacidad | **No implementado / PENDING** | sin regla aprobada (PENDING-09); no se implementó |
+
+No se detectaron defectos de producción. Se mantiene sin definir si una fecha de inspección futura debe rechazarse (no hay regla aprobada; no se inventó). Acuerdo GAMW: **PENDING**.
 
 ## 9. Distinción final
 
