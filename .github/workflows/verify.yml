@@ -54,14 +54,28 @@ jobs:
         working-directory: backend
         # Run 44537269267: maven-failsafe-plugin:3.5.6 (versión existente en Maven Central) no se pudo resolver de forma transitoria.
         # Solo descarga; las pruebas NO se omiten: se ejecutan completas en el paso siguiente.
+        # Run 44544583001: los reintentos reutilizaban la resolución fallida en caché (*.lastUpdated). -U obliga a reconsultar.
+        # Coordenadas explícitas del plugin (versión 3.10.0, la gestionada por el parent): sin resolución de prefijo «dependency:».
+        # Solo se reintenta ante errores de descarga/red; cualquier otro error falla de inmediato.
         run: |
+          set +e
           for i in 1 2 3; do
-            sh ./mvnw --batch-mode --no-transfer-progress -Ppostgres-integration \
+            sh ./mvnw --batch-mode --no-transfer-progress -U -Ppostgres-integration \
               -Daether.connector.http.retryHandler.count=5 -Daether.connector.http.retryHandler.requestSentEnabled=true \
-              dependency:resolve-plugins dependency:resolve && exit 0
-            echo "Resolución de dependencias falló (intento $i); reintentando"; sleep $((i * 30))
+              org.apache.maven.plugins:maven-dependency-plugin:3.10.0:resolve-plugins \
+              org.apache.maven.plugins:maven-dependency-plugin:3.10.0:resolve > "$RUNNER_TEMP/mvn-resolver.log" 2>&1
+            codigo=$?
+            [ "$codigo" -eq 0 ] && exit 0
+            causa=$(grep -m 5 -E 'could not be resolved|Could not (resolve|transfer)|status code|Connection|timed out|Network is unreachable|Remote host terminated' "$RUNNER_TEMP/mvn-resolver.log" | cut -c1-240 | sed ':a;N;$!ba;s/\n/%0A/g')
+            if [ -z "$causa" ]; then
+              tail -n 60 "$RUNNER_TEMP/mvn-resolver.log"
+              echo "::error title=Fallo de resolución no relacionado con la red::No se reintenta: revise el registro."
+              exit "$codigo"
+            fi
+            echo "Resolución falló por descarga/red (intento $i)"; echo "$causa" | sed 's/%0A/\n/g'; sleep $((i * 30))
           done
-          echo "::error title=Repositorio Maven no disponible::No se resolvieron plugins/dependencias tras 3 intentos; las pruebas no se ejecutaron (infraestructura, no la aplicación)."
+          tail -n 60 "$RUNNER_TEMP/mvn-resolver.log"
+          echo "::error title=Repositorio Maven no disponible::No se resolvieron plugins/dependencias tras 3 intentos con -U; las pruebas no se ejecutaron (infraestructura). Causa: ${causa}"
           exit 1
       - name: Integración esencial (Flyway V1–V20, seguridad, cadena operativa, historial, bitácora)
         working-directory: backend
