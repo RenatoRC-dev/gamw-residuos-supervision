@@ -28,10 +28,22 @@ public class ReferenciasJornadas {
     public PersonaNatural persona(UUID id) { return registro.persona(id,false).orElseThrow(() -> falta("Persona")); }
     public List<PeriodoServicio> periodos() { return registro.todosPeriodos(); }
     public LocalDate fechaServicio(Instant inicio) { return inicio.atZone(ZONA_OPERATIVA).toLocalDate(); }
+    /**
+     * H1 (auditoría F1): el periodo y su empresa se leen con bloqueo compartido DENTRO de la transacción que inserta o reprograma.
+     * Una corrección concurrente de fechas/estado (CU-04/CU-05, FOR UPDATE) espera a esta programación o, si ya está en curso, esta
+     * espera y valida contra los datos confirmados. Orden de bloqueo estable periodo → empresa, igual que GestionarPeriodosServicio.
+     * Solo se usa en operaciones de escritura (crear, reprogramar, asignar, reasignar); las consultas siguen sin bloqueo.
+     */
+    private PeriodoServicio periodoParaEscritura(UUID id) {
+        return registro.periodoPorIdCompartido(id).orElseThrow(() -> falta("Periodo de servicio"));
+    }
+    private EmpresaOperadora empresaParaEscritura(UUID id) {
+        return registro.empresaCompartida(id).orElseThrow(() -> falta("Empresa operadora"));
+    }
     public void validarProgramacion(UUID periodoId,UUID versionId,Instant inicio) {
         if (inicio == null) throw new IllegalArgumentException("El inicio programado es obligatorio.");
-        var periodo = periodo(periodoId);
-        var empresa = empresa(periodo.empresaOperadoraId());
+        var periodo = periodoParaEscritura(periodoId);
+        var empresa = empresaParaEscritura(periodo.empresaOperadoraId());
         if (!periodo.activo() || !empresa.activo()) throw new IllegalArgumentException("El periodo y su empresa deben estar activos para programar.");
         validarFecha(fechaServicio(inicio),periodo.fechaInicio(),periodo.fechaFin(),"La jornada está fuera del periodo de servicio.");
         var version = version(versionId);
@@ -40,8 +52,8 @@ public class ReferenciasJornadas {
         }
     }
     public void validarRecursos(UUID periodoId,Instant inicio,UUID vehiculoId,UUID personaId) {
-        var periodo = periodo(periodoId);
-        if (!periodo.activo() || !empresa(periodo.empresaOperadoraId()).activo()) throw new IllegalArgumentException("El periodo y la empresa deben estar activos para asignar.");
+        var periodo = periodoParaEscritura(periodoId);
+        if (!periodo.activo() || !empresaParaEscritura(periodo.empresaOperadoraId()).activo()) throw new IllegalArgumentException("El periodo y la empresa deben estar activos para asignar.");
         var v = vinculoVehiculo(vehiculoId);
         var p = vinculoPersona(personaId);
         if (!v.empresaOperadoraId().equals(periodo.empresaOperadoraId()) || !p.empresaOperadoraId().equals(periodo.empresaOperadoraId())) {

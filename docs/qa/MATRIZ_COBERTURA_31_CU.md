@@ -360,16 +360,19 @@ Verificado (local): `EmpresasPeriodosNavegadorIT` 1/1 (Chromium real + REST real
 **Defectos corregidos (probados en este corte):**
 1. *Interfaz:* la página cargaba empresas, personas y funciones con `Promise.all`; un A1 sin `PERSONAS_*` (permiso independiente) no veía ninguna empresa. Ahora cada sección se carga por separado e informa su propia falta de permiso.
 2. *CU-05 E3 / CA-CU-05-06:* corregir las fechas de un periodo podía dejar fuera jornadas ya registradas en él. Ahora responde **409** si alguna jornada del periodo quedaría fuera (misma regla de fecha de servicio America/La_Paz que la programación; bloqueo de la fila del periodo). No es una política de solapamiento.
+3. *Remediación F1 (auditoría 2026-11-19):* (H1) la programación/reprogramación/asignación leía periodo y empresa sin bloqueo; ahora los lee con `FOR SHARE` dentro de su transacción (orden estable periodo → empresa, también en la corrección del periodo). (H2) fallo de persistencia → 503 explícito. (H3) mensaje 400 por recurso. Regresión local: 22 clases IT, 107 pruebas en verde (incluye todas las `*EjecucionNoPropietariaIT`, `MinimoPrivilegioEjecucionIT`, `IntegridadHistoricaIT`, navegador de planificación/reprogramación/empresas).
 
 | Criterio | Estado | Evidencia |
 |---|---|---|
 | CA-04-01 registrar con razón social válida; obligatoria | **Verificado** | UI (sin petición si falta) y REST 400 |
 | CA-04-02 NIT único | **Verificado** | UI muestra el rechazo; REST 409; una sola fila |
 | CA-04-03 varios periodos sin duplicar identidad | **Verificado** | dos periodos coexistentes de la misma empresa |
-| CA-04-04 desactivación preserva periodos y jornadas | **Verificado** (vínculos de personal no ejercitados aquí) | empresa inactiva sigue listada; su periodo y la jornada intactos y consultables |
+| CA-04-04 desactivación preserva periodos, jornadas y vínculos de personal | **Verificado** | empresa inactiva sigue listada; su periodo, la jornada y el vínculo de personal (fila y función) intactos; personal consultable (200) |
 | CA-04-05 modificar no reescribe referencias | **Verificado** | edición de nombre comercial; id generado por el servidor (un id enviado se ignora) |
 | CA-04-06 sin eliminación física | **Verificado** | sin endpoint DELETE (403/405) |
-| CA-04-07 / CA-05-07 fallo de persistencia | **No demostrado** | sin inyección de fallos; operaciones transaccionales |
+| CA-04-07 / CA-05-07 fallo de persistencia | **Verificado** (inyección en prueba) | `FalloPersistenciaRegistroOperativoIT`: fallo inyectado *después* de ejecutar la escritura real (actualizar/estado de empresa; corregir/estado/crear periodo) → HTTP 503 «se revirtió», fila anterior idéntica, ningún periodo a medias. Antes llegaba a `/error` (cerrado por seguridad) y respondía un 403 engañoso |
+| Concurrencia CU-05 ↔ CU-11/CU-24 (auditoría F1 H1) | **Verificado** | `ConcurrenciaPeriodoJornadaIT` (+ variante rol no propietario INT-04), transacciones intercaladas de forma determinista: corrección en curso → la programación espera y se rechaza contra las fechas confirmadas; programación en curso → la corrección incompatible responde 409; desactivación de empresa en curso → no se programa; dos programaciones del mismo periodo no se bloquean. Reproducido como fallo con el código anterior (2 casos) |
+| Mensaje 400 de JSON malformado (H3) | **Verificado** | detalle propio de empresa/periodo, sin la explicación de vínculos |
 | CA-05-01 periodo vinculado a empresa registrada | **Verificado** | empresa inexistente 404; periodo de otra empresa 404 |
 | CA-05-02 fechas inconsistentes | **Verificado** | UI muestra el rechazo; REST 400 |
 | CA-05-03 consulta de periodos de empresa inactiva | **Verificado** | REST 200 y UI |

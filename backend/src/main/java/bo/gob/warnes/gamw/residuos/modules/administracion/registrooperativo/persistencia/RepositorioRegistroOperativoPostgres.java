@@ -64,6 +64,14 @@ public class RepositorioRegistroOperativoPostgres implements RepositorioRegistro
     public Optional<PeriodoServicio> periodoPorId(UUID id) {
         return jdbc.query("SELECT * FROM periodo_servicio WHERE id=?",this::leerPeriodo,id).stream().findFirst();
     }
+    // FOR SHARE: varias programaciones concurrentes del mismo periodo no se bloquean entre sí, pero esperan a una corrección
+    // de fechas/estado en curso (FOR UPDATE) y, tras ella, leen la versión confirmada (READ COMMITTED). Requiere UPDATE (INT-04: concedido).
+    public Optional<PeriodoServicio> periodoPorIdCompartido(UUID id) {
+        return jdbc.query("SELECT * FROM periodo_servicio WHERE id=? FOR SHARE",this::leerPeriodo,id).stream().findFirst();
+    }
+    public Optional<EmpresaOperadora> empresaCompartida(UUID id) {
+        return jdbc.query("SELECT * FROM empresa_operadora WHERE id=? FOR SHARE",this::leerEmpresa,id).stream().findFirst();
+    }
     public List<PeriodoServicio> todosPeriodos() {
         return jdbc.query("SELECT * FROM periodo_servicio ORDER BY fecha_inicio,id",this::leerPeriodo);
     }

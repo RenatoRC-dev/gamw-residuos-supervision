@@ -32,8 +32,9 @@ public class GestionarPeriodosServicio {
     }
     @Transactional
     public PeriodoServicio actualizar(UUID empresaId, UUID id, LocalDate fechaInicio, LocalDate fechaFin) {
-        empresas.buscar(empresaId,true);
+        // Orden de bloqueo estable periodo → empresa (el mismo que la programación de jornadas) para evitar interbloqueos.
         var anterior = obtener(empresaId,id);
+        empresas.buscar(empresaId,true);
         var periodo = new PeriodoServicio(id,empresaId,fechaInicio,fechaFin,anterior.activo(),anterior.creadoEn(),Instant.now().truncatedTo(ChronoUnit.MICROS));
         // CU-05 E3 / CA-CU-05-06: una corrección de fechas no puede dejar fuera del periodo jornadas ya registradas en él
         // (desnaturalizaría su referencia histórica). No es una política de solapamiento: solo protege lo ya programado.
@@ -45,8 +46,8 @@ public class GestionarPeriodosServicio {
     }
     @Transactional
     public PeriodoServicio cambiarEstado(UUID empresaId, UUID id, boolean activo) {
-        empresas.buscar(empresaId,true);
         var p = obtener(empresaId,id);
+        empresas.buscar(empresaId,true);
         var periodo = new PeriodoServicio(id,empresaId,p.fechaInicio(),p.fechaFin(),activo,p.creadoEn(),Instant.now().truncatedTo(ChronoUnit.MICROS));
         repositorio.actualizarPeriodo(periodo);
         return periodo;

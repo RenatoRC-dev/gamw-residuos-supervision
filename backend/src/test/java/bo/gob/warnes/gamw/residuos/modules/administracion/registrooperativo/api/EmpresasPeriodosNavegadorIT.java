@@ -76,6 +76,13 @@ class EmpresasPeriodosNavegadorIT extends IntegracionPostgresV8 {
         jdbc.update("INSERT INTO ruta VALUES (?,?,?,true,now(),now())",ruta,"EP-"+ruta,"Ruta sintética no oficial");
         jdbc.update("INSERT INTO ruta_version VALUES (?,?,1,ST_GeomFromText('LINESTRING(-63.1 -17.7,-63.1 -17.6)',4326),'2025-01-01T00:00:00Z',NULL,NULL,now())",version,ruta);
         jdbc.update("INSERT INTO jornada VALUES (?,?,?,?,NULL,NULL,NULL,true,now(),now())",jornada,periodo,version,Timestamp.from(Instant.parse("2026-06-15T12:00:00Z")));
+        // CA-CU-04-04: vínculo de personal histórico de la empresa (debe sobrevivir intacto a su desactivación).
+        UUID vinculo=UUID.randomUUID();
+        jdbc.update("INSERT INTO vinculo_persona_empresa VALUES (?,?,?,DATE '2026-01-01',NULL,true,now(),now())",vinculo,persona("Conductor histórico "+sufijo),historica);
+        jdbc.update("INSERT INTO vinculo_persona_funcion VALUES (?,'00000000-0000-4000-8000-000000000002')",vinculo);
+        var vinculoAntes=jdbc.queryForMap("SELECT persona_id,empresa_operadora_id,fecha_inicio,fecha_fin,activo FROM vinculo_persona_empresa WHERE id=?",vinculo);
+        String consultaPersonal="emp-per-"+sufijo;
+        usuario(consultaPersonal,"PERSONAS_CONSULTAR");
         String nit="NIT-"+sufijo.toUpperCase(),nueva="Nueva sintética "+sufijo,duplicada="Duplicada sintética "+sufijo;
 
         int web;
@@ -128,6 +135,12 @@ class EmpresasPeriodosNavegadorIT extends IntegracionPostgresV8 {
         assertThat(jdbc.queryForMap("SELECT fecha_inicio::text AS i,fecha_fin::text AS f,empresa_operadora_id FROM periodo_servicio WHERE id=?",periodo))
             .containsEntry("i","2026-01-01").containsEntry("f","2027-06-30").containsEntry("empresa_operadora_id",historica);
         assertThat(jdbc.queryForObject("SELECT periodo_servicio_id FROM jornada WHERE id=?",UUID.class,jornada)).as("la jornada conserva su periodo").isEqualTo(periodo);
+        assertThat(jdbc.queryForMap("SELECT persona_id,empresa_operadora_id,fecha_inicio,fecha_fin,activo FROM vinculo_persona_empresa WHERE id=?",vinculo))
+            .as("CA-CU-04-04: el vínculo de personal queda intacto tras desactivar la empresa").isEqualTo(vinculoAntes);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM vinculo_persona_funcion WHERE vinculo_persona_empresa_id=?",Integer.class,vinculo)).isEqualTo(1);
+        var personalHistorico=api("GET","/api/empresas-operadoras/"+historica+"/personal",token(consultaPersonal),null);
+        assertThat(personalHistorico.statusCode()).as("personal de empresa inactiva consultable").isEqualTo(200);
+        assertThat(personalHistorico.body()).contains(vinculo.toString());
 
         // ---------- REST real: autorización, validación, conflicto e historia ----------
         String ta=token(admin),tl=token(lector),ts=token(sinPermiso),to=token(operador);

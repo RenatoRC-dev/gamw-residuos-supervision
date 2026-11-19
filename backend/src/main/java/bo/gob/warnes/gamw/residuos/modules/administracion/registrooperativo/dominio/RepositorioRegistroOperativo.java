@@ -19,6 +19,10 @@ public interface RepositorioRegistroOperativo {
     Optional<PeriodoServicio> periodo(UUID empresaId, UUID id);
     List<PeriodoServicio> periodos(UUID empresaId);
     Optional<PeriodoServicio> periodoPorId(UUID id);
+    /** H1: lectura con bloqueo compartido (FOR SHARE) para validar programación sin carrera con la corrección del periodo. */
+    Optional<PeriodoServicio> periodoPorIdCompartido(UUID id);
+    /** H1: lectura con bloqueo compartido (FOR SHARE) del estado de la empresa al programar o asignar. */
+    Optional<EmpresaOperadora> empresaCompartida(UUID id);
     List<PeriodoServicio> todosPeriodos();
     /** CU-05 E3: jornadas ya registradas del periodo cuya fecha de servicio (America/La_Paz) quedaría fuera de [inicio, fin]. */
     long jornadasFueraDeFechas(UUID periodoId, java.time.LocalDate inicio, java.time.LocalDate fin);
