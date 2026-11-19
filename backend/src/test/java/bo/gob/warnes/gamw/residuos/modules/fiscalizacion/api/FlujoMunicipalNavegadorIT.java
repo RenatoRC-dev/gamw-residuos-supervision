@@ -146,6 +146,8 @@ class FlujoMunicipalNavegadorIT extends IntegracionPostgresV8 {
                 .directory(directorio.toFile()).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
         vite.environment().put("GAMW_WEB_INTEGRACION","true");
         vite.environment().put("VITE_API_BASE_URL","/api");
+        // Aislamiento de servicios externos: estilo de mapa base vacío y local (sin red). Las pruebas verifican tablas, etiquetas y API, no teselas.
+        vite.environment().put("VITE_MAP_STYLE_URL","data:application/json,%7B%22version%22%3A8%2C%22sources%22%3A%7B%7D%2C%22layers%22%3A%5B%5D%7D");
         vite.environment().put("BACKEND_PROXY_TARGET","http://127.0.0.1:"+puerto);
         Process servidor=vite.start();
         try {

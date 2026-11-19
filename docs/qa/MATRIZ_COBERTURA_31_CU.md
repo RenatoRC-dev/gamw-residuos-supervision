@@ -1,6 +1,6 @@
 # Matriz de cobertura de los 31 CU — auditoría funcional (baseline `6db0d1e`; actualizada en `c1f0ce3` [CU-22] y en el corte CU-20)
 
-> Conteo vigente tras los cortes CU-22, CU-20 y CU-26 (CU-26 permanece PARTIAL: solo el registro textual está verificado, §12): **IMPLEMENTED 3 · PARTIAL 24 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1**. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
+> Conteo vigente tras los cortes CU-22, CU-20, CU-26 y CU-11/12 (§13). **IMPLEMENTED 5 (01, 11, 12, 22, 29) · PARTIAL 22 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1.** CU-26 y CU-20 permanecen PARTIAL (solo subconjuntos verificados, §11-12). Detalle histórico del conteo anterior: **IMPLEMENTED 3 · PARTIAL 24 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1**. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
 
 **Naturaleza:** auditoría de solo lectura (no se implementó nada). Evidencia = rutas de archivos del repositorio y resultados ya ejecutados en esta campaña.
 **Distinción obligatoria:** *verificación técnica automatizada* ≠ *aceptación institucional*. Ningún CU está aceptado por el GAMW.
@@ -46,8 +46,8 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 08 Estructura territorial | RF-05 | A1 | — | — | — | — | **INSTITUTIONALLY BLOCKED**: jerarquía y fuentes oficiales inexistentes (CU-08). No inventar |
 | 09 Rutas | RF-06 | **A4** (baseline) | `RutasReferenciaController`, V2/V3 versionado | `PaginaRutasReferencia.tsx` | — | ITD `RutasReferenciaIT`; E2E `rutas-referencia`; VT | **PARTIAL**: el código restringe a A1; escritura A4 sin alcance aprobado; UI bajo JWT sin verificar |
 | 10 Puntos de control / geocercas | RF-06 | A1 / A3 | `ReferenciasEspacialesController`, V12 | `PaginaReferenciasEspaciales.tsx` | — | **—** | **PARTIAL**: sin pruebas; fuentes/vigencia de geocercas por definir |
-| 11 Programar jornada | RF-07 | **A4** | `GestionarJornadas`, `PlanificarJornadasOperador`, `JornadasOperadorController` | `PaginaReprogramacionEmpresa.tsx` (`/empresa/jornadas`), `PaginaJornadas.tsx` (municipal) | — | ITD `JornadasIT` (11); ITJ REST `AutorizacionOperativaV19IT`; E2E `jornadas` **dev-local** (municipal); VT `PaginaJornadas.test.tsx` | **PARTIAL**: la UI del actor real (A4, `/empresa/jornadas`) **no tiene ninguna prueba**; sembrado por UI solo en modo local |
-| 12 Asignar recursos | RF-07 | **A4** | ídem + `ReferenciasJornadas` | ídem | — | ídem; cruce de empresa 400 en `AutorizacionOperativaV19IT` (REST) | **PARTIAL**: ídem CU-11 |
+| 11 Programar jornada | RF-07 | **A4** | `GestionarJornadas`, `PlanificarJornadasOperador`, `JornadasOperadorController` | `PaginaReprogramacionEmpresa.tsx` (`/empresa/jornadas`) ✔ UI A4; `PaginaJornadas.tsx` (municipal) | — | E2E `flujo-planificacion.test.mjs` vía `PlanificacionOperadorNavegadorIT` (UI A4, JWT, concesión de periodo) + REST; ITD `JornadasIT` (11); ITJ `AutorizacionOperativaV19IT` (6) | **IMPLEMENTED** (técnico, §13). Pendiente institucional: calendarios/horarios oficiales y D1 (no inventados); la creación de empresas/periodos/rutas se siembra por SQL |
+| 12 Asignar recursos | RF-07 | **A4** | ídem + `ReferenciasJornadas` | ídem | — | ídem (asignar, reasignar, historial, una abierta, recursos elegibles) | **IMPLEMENTED** (técnico, §13); alta de vínculos de recursos = CU-06/07 (A1), fuera de este corte |
 | 13 Ejecutar jornada | RF-08/09/10/11 | A5 | `EjecucionJornadasController`, `PosicionesGpsController`, `MisJornadasController`, V7–V9 | — | `pagina_operacion.dart`, SQLite, `ServicioCapturaGps.kt`, cola/sync | ITJ `EjecucionAutenticadaIT`, `EventosEjecucionIT`, `PosicionesGpsIT`, `CadenaOperativaFiscalizacionIT`; FT `test/auth/pagina_operacion_test.dart`; EMU `qa_emulador/cadena_offline_emulador_test.dart` (**GPS sintético**, no UI) | **PARTIAL**: GPS nativo, batería, segundo plano, fabricantes y CA-4A-21 sin QA física; el emulador no maneja la UI |
 | 14 Incidencia | RF-16 | A3/A4/A5 según ámbito | `ActuacionesController`, `GestionarActuaciones` | `PaginaCorrectivas.tsx` (lectura) | `panel_incidencias.dart` | REST en `FlujoMunicipalNavegadorIT` (alta, duplicado, tardía 409); móvil/web alta: **—** | **PARTIAL**: móvil sin pruebas; A4 y captura tardía/offline sin política |
 | 15 Monitorear posición | RF-12 | A3 / A4 | `MonitoreoController` | `PaginaMonitoreo.tsx` | — | **—** (solo cierre en `ConsultaSeguimientoGpsIT:109`) | **PARTIAL**: sin pruebas; A4 = D1; continuidad en ejecución real sin QA |
@@ -165,6 +165,27 @@ Verificado (local): `ReclamoInstitucionalIT` 4/4 (JWT real, PostgreSQL/PostGIS a
 | Anexos / datos personales / catálogo oficial de canales / duplicados entre canales / SLA | **No implementado / PENDING** | anexos deshabilitados sin política (`anexosHabilitados=false`); canal es texto declarado, no catálogo; sin portal ciudadano (CU-25) ni validación (CU-27) |
 
 Acuerdo GAMW: **PENDING** (solo verificación técnica del registro textual).
+
+## 13. Actualización — corte CU-11/CU-12 (planificación por el operador A4) · RF-07
+
+Verificado (local): `PlanificacionOperadorNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado), con `apps/web/e2e/flujo-planificacion.test.mjs`; regresión `JornadasIT` 11, `AutorizacionOperativaV19IT` 6, `CadenaOperativaFiscalizacionIT` 2, `HistorialServicioIT` 5. Empresas, periodos, ruta, vínculos y concesiones sembrados por SQL (no por la UI). Sin defectos de producción detectados.
+
+| Criterio | Estado | Prueba |
+|---|---|---|
+| A4 ve y programa **solo** en periodos con concesión `JORNADA_PROGRAMAR`; otro operador ve solo el suyo y ninguna jornada ajena | **Verificado** | UI: selector con 1 periodo propio; otro operador: periodo propio y 0 jornadas; REST: programar en periodo ajeno/inexistente = 403 |
+| Empresa derivada del periodo (no viaja en el cuerpo) | **Verificado** | cuerpo sin empresa; DB `periodo→empresa`; campo `empresaOperadoraId` = 400 |
+| Versión de ruta válida y fechas programadas (Bolivia UTC−04:00) | **Verificado** | `ruta_version_id` y `inicio_programado` exactos; fuera de periodo = 400; fin ≤ inicio = 400; fecha anterior a la concesión sin histórico = 403; versión inexistente 400/404 |
+| Referencias inmutables | **Verificado** | UPDATE de periodo/inicio/vínculos rechazado |
+| Reintento tras fallo de transporte incierto | **Verificado** | UI: envío fallido + reintento = misma solicitud, UNA jornada (programar) y UNA asignación (asignar); conflicto: misma solicitud con otro contenido = 409 |
+| Asignación a recursos **elegibles** de la empresa derivada | **Verificado** | UI ofrece solo vínculos de la empresa del periodo; excluye otra empresa, vehículo inactivo y vínculo vencido |
+| Recursos incompatibles / duplicados | **Verificado** | otra empresa (vehículo o persona), inactivo, vencido, inexistente = 400/404; asignar con una abierta = 409; reasignar sin motivo = 400; el historial no cambió |
+| Una sola asignación abierta, historial conservado, autoría | **Verificado** | tras reasignar: 2 filas, 1 abierta, la anterior cerrada al iniciar la nueva, motivo; 3 actuaciones (PROGRAMAR/ASIGNAR/REASIGNAR) con la cuenta autenticada |
+| Acceso entre operadores | **Verificado** | otro operador: GET jornada, recursos y asignar = 403 |
+| Programar/asignar no implica ejecución ni cumplimiento | **Verificado** | 0 eventos INICIO/FIN, 0 GPS, 0 fiscalización, 0 acciones correctivas; la UI no muestra veredicto ni «en ejecución» |
+| Calendarios de disponibilidad, horarios oficiales, D1, contratos | **No implementado / PENDING** | no se inventaron |
+| CU-24 (reprogramación) | **Fuera de este corte** | solo regresión existente (`JornadasIT`, `AutorizacionOperativaV19IT`) |
+
+Mitigación CI relacionada: el Browser E2E de `1631d79` falló en CI (Linux) por un clic en el formulario de reclamos agotado; no reproducible en local. Se añadió estilo de mapa local sin red y diagnóstico `DIAG` para identificar la causa si persiste (causa raíz: **no confirmada**).
 
 ## 9. Distinción final
 

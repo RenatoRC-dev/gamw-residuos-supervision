@@ -65,13 +65,13 @@ jobs:
         run: |
           set +e
           sh ./mvnw --batch-mode --no-transfer-progress \
-            -Dtest=FlujoMunicipalNavegadorIT,AutenticacionWebIT,RegistroPlanificacionWebIT -Dsurefire.failIfNoSpecifiedTests=false test \
+            -Dtest=FlujoMunicipalNavegadorIT,PlanificacionOperadorNavegadorIT,AutenticacionWebIT,RegistroPlanificacionWebIT -Dsurefire.failIfNoSpecifiedTests=false test \
             > "$RUNNER_TEMP/mvn-e2e.log" 2>&1
           codigo=$?
           grep -viE 'authorization|bearer|eyJ' "$RUNNER_TEMP/mvn-e2e.log" > "$RUNNER_TEMP/mvn-e2e-sanitizado.log"
           tail -n 120 "$RUNNER_TEMP/mvn-e2e-sanitizado.log"
           if [ "$codigo" -ne 0 ]; then
-            resumen=$( { grep -nE 'Tests run:.*FAIL|not ok|waiting for|strict mode|Timeout|Falló el aprovisionamiento|Caused by|FATAL' "$RUNNER_TEMP/mvn-e2e-sanitizado.log" | head -20; } | cut -c1-260 | sed ':a;N;$!ba;s/\n/%0A/g')
+            resumen=$( { grep -nE 'Tests run:.*FAIL|not ok|DIAG|waiting for|strict mode|Timeout|Falló el aprovisionamiento|Caused by|FATAL' "$RUNNER_TEMP/mvn-e2e-sanitizado.log" | head -20; } | cut -c1-260 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=Fallos de E2E de navegador::${resumen}"
           fi
           cp "$RUNNER_TEMP/mvn-e2e-sanitizado.log" "$GITHUB_WORKSPACE/backend/target/mvn-e2e-sanitizado.log" || true

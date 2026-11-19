@@ -36,7 +36,17 @@ test('CU-26: A3 registra reclamos (sin y con jornada) en el navegador, idempoten
     await formulario.waitFor();
     // La interfaz no ofrece validar ni revisar con este permiso.
     assert.equal(await page.getByRole('heading', { name: 'Agregar revisión humana' }).count(), 0);
-    const enviar = () => formulario.getByRole('button', { name: /^(Registrar|Reintentar misma solicitud)$/ });
+    const boton = formulario.getByRole('button', { name: /^(Registrar|Reintentar misma solicitud)$/ });
+    // Si el botón no es accionable, se imprime su estado real (DIAG) antes de fallar: diagnóstico sin ocultar el fallo.
+    const enviar = () => ({ click: async () => {
+      try { await boton.click({ timeout: 15000 }); }
+      catch (e) {
+        const estado = await formulario.evaluate(f => ({ botones: [...f.querySelectorAll('button')].map(b => [b.textContent, b.disabled]),
+          fieldset: f.querySelector('fieldset')?.disabled, alerta: f.querySelector('[role=alert]')?.textContent })).catch(() => 'sin formulario');
+        console.log(`DIAG click del formulario: ${JSON.stringify(estado)}`);
+        throw e;
+      }
+    }, waitFor: () => boton.waitFor() });
 
     // Datos obligatorios: el formulario vacío no emite petición.
     await enviar().click();
