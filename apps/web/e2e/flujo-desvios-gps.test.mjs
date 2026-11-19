@@ -61,7 +61,9 @@ test('CU-19: A3 revisa separaciones y detenciones candidatas sin dictaminar; A4 
     await fila('DESVIO_CANDIDATO').getByText('no tramo recorrido ni incumplimiento', { exact: false }).waitFor();
     assert.equal(await fila('SEPARACION_INDETERMINADA_POR_PRECISION').count(), 2, 'Precisión reportada vuelve incierta la separación.');
     await page.getByText(`RutaVersion ${d.versionHistorica}`, { exact: false }).waitFor();
-    await page.getByText('Incidencias operativas y verificación de causas no están implementadas en esta revisión; no se inventa una explicación.').waitFor();
+    // H-08: contexto de incidencias solo con el permiso existente CORRECTIVA_CONSULTAR; este revisor no lo tiene.
+    await page.getByText('Sin permiso de consulta correctiva (CORRECTIVA_CONSULTAR): no se muestran incidencias de la jornada.').waitFor();
+    assert.equal(await page.getByText(d.incidencia, { exact: false }).count(), 0, 'Sin permiso: la incidencia no se expone.');
     const cuerpo = (await page.locator('main').innerText()).replace(/no prueba camión detenido|no son sanciones, fraude comprobado ni cumplimiento|no tramo recorrido ni incumplimiento|no certifica integridad, presencia del camión ni cumplimiento/gi, '');
     assert.ok(!/fraude|vehículo detenido|camión detenido|recolección omitida|sanci|\bcumple\b|incumpl/i.test(cuerpo), 'Sin veredictos automáticos.');
 
@@ -90,6 +92,23 @@ test('CU-19: A3 revisa separaciones y detenciones candidatas sin dictaminar; A4 
     assert.equal(await revisar('00000000-0000-4000-8000-0000000000ff'), 404);
     await page.getByRole('alert').filter({ hasText: /\S/ }).waitFor();
     assert.equal(await page.locator('section[aria-label="Resultado técnico de revisión"]').count(), 0);
+    assert.deepEqual(mutaciones, [], 'Solo lecturas.');
+
+    // ================= Revisor con CORRECTIVA_CONSULTAR: ve el contexto, sin asociación causal =================
+    await page.getByRole('link', { name: 'Inicio', exact: true }).click();
+    await page.getByRole('link', { name: 'Autenticarse en GAMW' }).click();
+    await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+    await ingresar(d.revisorContexto);
+    await abrir();
+    assert.equal(await revisar(d.j.principal), 200);
+    const contextoIncidencias = page.getByRole('region', { name: 'Incidencias registradas de la jornada' });
+    await contextoIncidencias.getByText(`Hecho: ${d.incidenciaOcurrida}`, { exact: false }).waitFor();
+    await contextoIncidencias.getByText(d.incidencia, { exact: false }).waitFor();
+    await contextoIncidencias.getByText('no se asocian automáticamente a las señales ni explican, justifican o excusan una separación o detención', { exact: false }).waitFor();
+    assert.deepEqual(await tipos(), d.esperados, 'El contexto no modifica ni suprime señales.');
+    for (const e of await page.locator('tbody tr').evaluateAll(rs => rs.map(r => r.children[1].textContent))) assert.equal(e, 'POR_REVISAR');
+    assert.equal(await revisar(d.j.sinCandidatos), 200);
+    await page.getByRole('region', { name: 'Incidencias registradas de la jornada' }).getByText('Sin incidencias registradas para esta jornada; no se infiere ninguna causa.').waitFor();
     assert.deepEqual(mutaciones, [], 'Solo lecturas.');
 
     // ================= A4 y cuenta sin permiso =================

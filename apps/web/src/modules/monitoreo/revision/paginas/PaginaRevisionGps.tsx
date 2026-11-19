@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useSesionActual } from '../../../administracion/identidad/aplicacion/contextoAutenticacion';
 import { ErrorRevisionGps, revisarGps, type ParametrosRevision, type RevisionGps, type TipoRevision } from '../api/revisionGps';
 import { MapaRevisionGps } from '../componentes/MapaRevisionGps';
+import { actuacionesApi, ErrorActuacion, type Incidencia } from '../../../correctivas/api/actuaciones';
 
 export function PaginaRevisionGps() {
   const { sesion, cerrar } = useSesionActual(); const [parametros] = useSearchParams();
@@ -16,6 +17,31 @@ const iniciales: ParametrosRevision = { huecoSegundos: 120, precisionMetros: 50,
 const etiquetas: Record<keyof ParametrosRevision, string> = { huecoSegundos: 'Separación temporal (s)', precisionMetros: 'Precisión reportada máxima (m)',
   velocidadKmh: 'Velocidad candidata máxima (km/h)', desvioMetros: 'Separación de ruta (m)', radioDetencionMetros: 'Radio técnico de agrupación (m)',
   detencionSegundos: 'Duración candidata de detención (s)', antiguedadSegundos: 'Antigüedad de captura (s)' };
+/**
+ * H-08 · CU-19: contexto de SOLO LECTURA con las incidencias ya registradas de la misma jornada, mediante la consulta existente
+ * /api/correctivas/jornadas/{id} y su permiso existente CORRECTIVA_CONSULTAR (no se crea permiso ni asociación). No se cruzan
+ * automáticamente con las señales: una incidencia no explica, justifica ni excusa una separación o detención candidata.
+ */
+function ContextoIncidencias({ token, jornada }: { token: string; jornada: string }) {
+  const [estado, setEstado] = useState<{ incidencias: Incidencia[] } | { error: string } | null>(null);
+  useEffect(() => {
+    const abort = new AbortController();
+    actuacionesApi.expediente(token, jornada, abort.signal)
+      .then(e => { if (!abort.signal.aborted) setEstado({ incidencias: [...e.incidencias].sort((a, b) => a.ocurridaEn.localeCompare(b.ocurridaEn)) }); })
+      .catch(e => { if (!abort.signal.aborted) setEstado({ error: e instanceof ErrorActuacion && e.estado === 403
+        ? 'Sin permiso de consulta correctiva (CORRECTIVA_CONSULTAR): no se muestran incidencias de la jornada.'
+        : 'No se pudo consultar las incidencias de la jornada; la revisión técnica no cambia.' }); });
+    return () => abort.abort();
+  }, [token, jornada]);
+  return <section aria-label="Incidencias registradas de la jornada"><h3>Incidencias registradas de la jornada (contexto)</h3>
+    <p>Solo contexto declarado para la revisión humana: no se asocian automáticamente a las señales ni explican, justifican o excusan una separación o detención.</p>
+    {!estado ? <p role="status">Consultando incidencias autorizadas…</p>
+      : 'error' in estado ? <p>{estado.error}</p>
+        : !estado.incidencias.length ? <p>Sin incidencias registradas para esta jornada; no se infiere ninguna causa.</p>
+          : <ul>{estado.incidencias.map(i => <li key={i.id}>Hecho: {i.ocurridaEn} · Registro: {i.registradaEn} · {i.descripcion}{i.lugarDescripcion ? ` · Lugar declarado: ${i.lugarDescripcion}` : ''}</li>)}</ul>}
+  </section>;
+}
+
 /** Identidad inmutable de una consulta: un resultado solo se muestra si coincide con el contexto visible del formulario. */
 const claveConsulta = (token: string, jornada: string, tipo: TipoRevision, p: ParametrosRevision) => JSON.stringify([token, jornada.trim(), tipo, p]);
 export function PanelRevisionGps({ token, inicial, vencer }: { token: string; inicial: string; vencer?: (mensaje?: string) => void }) {
@@ -79,7 +105,9 @@ export function PanelRevisionGps({ token, inicial, vencer }: { token: string; in
         <br />Primera: {r.primera ?? 'No observada'} · Última: {r.ultima ?? 'No observada'} · Distancia mínima: {r.distanciaMinimaMetros ?? 'No disponible'} m.
         <br />{r.limitacion}</li>)}</ul>
       <p><Link to={`/trayectorias?jornada=${encodeURIComponent(datos.jornadaId)}`}>Consultar trayectoria (permiso independiente)</Link></p>
-      <p>Incidencias operativas y verificación de causas no están implementadas en esta revisión; no se inventa una explicación.</p>
+      {tipo === 'desvios'
+        ? <ContextoIncidencias key={`${token}:${datos.jornadaId}`} token={token} jornada={datos.jornadaId} />
+        : <p>Incidencias operativas y verificación de causas no están implementadas en esta revisión; no se inventa una explicación.</p>}
     </section>}
   </>;
 }

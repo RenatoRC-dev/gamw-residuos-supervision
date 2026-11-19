@@ -76,7 +76,7 @@ class _PanelIncidenciasState extends State<PanelIncidencias> {
         _aviso = e.estado == 400 ? 'Datos rechazados; revise fecha, descripción y asignación.'
           : e.estado == 403 ? 'No tiene autorización para esta asignación.'
           : e.estado == 409 ? 'Se requiere INICIO sincronizado y jornada sin FIN, o existe un conflicto. Consulte las incidencias antes de reintentar.'
-          : 'Registro no confirmado. Recupere sesión/conexión y reintente la misma solicitud.';
+          : 'Registro no confirmado. Recupere sesión/conexión y reintente la misma solicitud; solo se conserva mientras este formulario permanezca abierto (no es una cola offline).';
       });
     } on Object {
       if (mounted && _cuentaPropia) setState(() => _aviso = 'Sin confirmación. Este formulario conserva la misma solicitud mientras permanezca abierto; no es una cola offline.');

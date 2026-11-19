@@ -98,6 +98,9 @@ class DesviosDetencionesNavegadorIT extends IntegracionPostgresV8 {
         UUID uR=usuario(revisor),uO=usuario(operador); usuario(sinPermiso); UUID uX=usuario(otro); conductor=usuario("des-cond-"+sufijo);
         conceder(uR,"GPS_DESVIOS_REVISAR");
         conceder(uX,"GPS_COINCIDENCIAS_REVISAR");   // permisos de revisión independientes
+        String revisorContexto="des-ctx-"+sufijo;    // H-08: revisor con el permiso existente de consulta correctiva
+        UUID uC=usuario(revisorContexto);
+        conceder(uC,"GPS_DESVIOS_REVISAR"); conceder(uC,"CORRECTIVA_CONSULTAR");
         jdbc.update("INSERT INTO empresa_operadora VALUES (?,NULL,?,NULL,true,now(),now())",empresa,"Empresa sintética desvíos "+sufijo);
         jdbc.update("INSERT INTO periodo_servicio VALUES (?,?,DATE '2026-01-01',DATE '2035-12-31',true,now(),now())",periodo,empresa);
         for(String p:List.of("PLANIFICACION_CONSULTAR","JORNADA_PROGRAMAR","JORNADA_ASIGNAR","JORNADA_REPROGRAMAR"))
@@ -142,6 +145,11 @@ class DesviosDetencionesNavegadorIT extends IntegracionPostgresV8 {
         UUID j5=jornada(rutaVersion()[1]);
         jdbc.update("INSERT INTO posicion_gps SELECT gen_random_uuid(),gen_random_uuid(),?,?,?,(?::timestamptz)+i*interval '1 second',(?::timestamptz)+i*interval '1 second'+interval '1 second',ST_SetSRID(ST_MakePoint(-63.1,-17.65),4326),5 FROM generate_series(1,5001) i",
                 j5,asignacionDe(j5),conductor,Timestamp.from(b),Timestamp.from(b));
+        // Incidencia ya registrada por el conductor durante la jornada (contexto H-08; no se asocia a ninguna señal).
+        String textoIncidencia="Desvío por calle bloqueada (sintético "+sufijo+")";
+        Instant ocurrida=b.plusSeconds(1100);
+        jdbc.update("INSERT INTO incidencia_operativa(id,solicitud_id,huella_solicitud,jornada_id,asignacion_jornada_id,usuario_id,ocurrida_en,descripcion,evidencia_declarada,lugar_descripcion) VALUES (?,?,'h',?,?,?,?,?,'','Calle sintética')",
+                UUID.randomUUID(),UUID.randomUUID(),jp,asignacionDe(jp),conductor,Timestamp.from(ocurrida),textoIncidencia);
         var esperados=new ArrayList<>(List.of("DESVIO_CANDIDATO","DETENCION_CANDIDATA","SEPARACION_INDETERMINADA_POR_PRECISION","SEPARACION_INDETERMINADA_POR_PRECISION"));
         Collections.sort(esperados);
         int gpsAntes=contar("SELECT count(*) FROM posicion_gps");
@@ -167,9 +175,10 @@ class DesviosDetencionesNavegadorIT extends IntegracionPostgresV8 {
                 Thread.sleep(100);
             }
             assertThat(listo).as("Vite nuevo en puerto aislado").isTrue();
-            var payload=Map.of("clave",clave,"revisor",revisor,"operador",operador,"sinPermiso",sinPermiso,
+            var payload=new LinkedHashMap<String,Object>(Map.of("clave",clave,"revisor",revisor,"operador",operador,"sinPermiso",sinPermiso,
                 "j",Map.of("principal",jp,"sinCandidatos",jsin,"cero",jcero,"una",juna),"esperados",esperados,
-                "detencion",Map.of("desde",b.plusSeconds(1000).toString(),"hasta",b.plusSeconds(1200).toString()),"versionHistorica",rv[1].toString());
+                "detencion",Map.of("desde",b.plusSeconds(1000).toString(),"hasta",b.plusSeconds(1200).toString()),"versionHistorica",rv[1].toString()));
+            payload.put("revisorContexto",revisorContexto); payload.put("incidencia",textoIncidencia); payload.put("incidenciaOcurrida",ocurrida.toString());
             var prueba=new ProcessBuilder("node","--test","e2e/flujo-desvios-gps.test.mjs").directory(directorio.toFile()).redirectErrorStream(true);
             var env=prueba.environment();
             env.put("GAMW_WEB_INTEGRACION","true"); env.put("GAMW_WEB_TEST_BASE","http://127.0.0.1:"+web); env.put("GAMW_WEB_TEST_DATOS",json.writeValueAsString(payload));
