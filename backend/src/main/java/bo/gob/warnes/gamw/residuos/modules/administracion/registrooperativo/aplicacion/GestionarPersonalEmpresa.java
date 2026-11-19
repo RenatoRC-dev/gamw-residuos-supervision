@@ -54,6 +54,10 @@ public class GestionarPersonalEmpresa {
         if (!anterior.fechaInicio().equals(fechaInicio)) {
             throw new IllegalArgumentException("La fecha de inicio identifica el segmento histórico y no puede modificarse. Cree un nuevo vínculo.");
         }
+        // CU-07 E5 / CA-CU-07-08: el cierre no puede dejar fuera del vínculo jornadas ya asignadas con él (serializado por la empresa).
+        long fuera = fechaFin == null ? 0 : repositorio.asignacionesPosterioresAlCierre(id,fechaFin);
+        if (fuera > 0) throw new ModificacionHistoricaIncompatible("El cierre dejaría " + fuera
+                + " asignación(es) de jornada fuera del vínculo de la persona; no se modifica el historial. Reasigne primero las jornadas futuras.");
         var vinculo = new VinculoPersonaEmpresa(id,anterior.personaId(),empresaId,fechaInicio,fechaFin,activo,anterior.creadoEn(),Instant.now().truncatedTo(ChronoUnit.MICROS));
         repositorio.actualizarVinculo(vinculo);
         return detalle(vinculo);

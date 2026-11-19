@@ -28,6 +28,8 @@ public interface RepositorioRegistroOperativo {
     long jornadasFueraDeFechas(UUID periodoId, java.time.LocalDate inicio, java.time.LocalDate fin);
     void insertarVinculo(VinculoPersonaEmpresa vinculo);
     void actualizarVinculo(VinculoPersonaEmpresa vinculo);
+    /** CU-07 E5 / CA-CU-07-08: asignaciones (vigentes o históricas) hechas con el vínculo cuya fecha de servicio quedaría después de {@code fin}. */
+    long asignacionesPosterioresAlCierre(UUID vinculoId, java.time.LocalDate fin);
     Optional<VinculoPersonaEmpresa> vinculo(UUID empresaId, UUID id);
     Optional<VinculoPersonaEmpresa> vinculoPorId(UUID id);
     List<VinculoPersonaEmpresa> personal(UUID empresaId);

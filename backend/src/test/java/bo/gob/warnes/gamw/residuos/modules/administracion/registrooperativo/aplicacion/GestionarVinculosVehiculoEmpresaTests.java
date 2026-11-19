@@ -29,4 +29,18 @@ class GestionarVinculosVehiculoEmpresaTests {
         verify(repositorio,never()).insertarVinculo(any());
         verifyNoInteractions(vehiculos);
     }
+    @Test
+    void cierreQueDejaFueraUnaJornadaAsignadaSeRechazaSinEscribir() {
+        var repositorio = mock(RepositorioVehiculos.class);
+        var anterior = new VinculoVehiculoEmpresa(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),LocalDate.of(2026,1,1),null,true,Instant.now(),Instant.now());
+        when(repositorio.vinculo(anterior.empresaOperadoraId(),anterior.id())).thenReturn(Optional.of(anterior));
+        when(repositorio.asignacionesPosterioresAlCierre(anterior.id(),LocalDate.of(2026,5,31))).thenReturn(1L);
+        var casoUso = new GestionarVinculosVehiculoEmpresa(repositorio,mock(GestionarVehiculos.class),mock(GestionarEmpresasOperadoras.class));
+        assertThatThrownBy(() -> casoUso.cerrar(anterior.empresaOperadoraId(),anterior.id(),LocalDate.of(2026,5,31),false))
+            .isInstanceOf(ModificacionHistoricaIncompatible.class).hasMessageContaining("1 asignación(es)");
+        verify(repositorio,never()).cerrarVinculo(any());
+        // Reabrir (sin fecha de fin) nunca deja asignaciones fuera.
+        casoUso.cerrar(anterior.empresaOperadoraId(),anterior.id(),null,true);
+        verify(repositorio,never()).asignacionesPosterioresAlCierre(anterior.id(),null);
+    }
 }

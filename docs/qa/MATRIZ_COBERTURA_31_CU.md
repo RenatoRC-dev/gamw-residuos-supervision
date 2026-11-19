@@ -18,12 +18,12 @@ Fuentes: `docs/context/GAMW_BASELINE_FUNCIONAL_CU01_CU31_v1_0.md` (actores), `do
 
 | Estado | Cantidad | CU |
 |---|---|---|
-| IMPLEMENTED | **8** | 01, 04, 05, 11, 12, 22, 24, 29 (22 desde §10; 11/12 desde §13; 24 desde §14; 04/05 desde §23) |
-| PARTIAL | **19** | 02, 03, 06, 07, 09, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 26, 27, 28 |
+| IMPLEMENTED | **10** | 01, 04, 05, 06, 07, 11, 12, 22, 24, 29 (22 desde §10; 11/12 desde §13; 24 desde §14; 04/05 desde §23; 06/07 desde §24) |
+| PARTIAL | **17** | 02, 03, 09, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 26, 27, 28 |
 | INSTITUTIONALLY BLOCKED | **3** | 08, 25, 31 (31: código listo, acceso denegado por D1) |
 | NOT IMPLEMENTED | **1** | 30 |
 
-Total 31 (verificado fila por fila contra la tabla de la sección siguiente, corte F1 §23). **IMPLEMENTED no implica aceptación**: es verificación técnica automatizada; ningún CU está aceptado por el GAMW. Conteos históricos de esta tabla: 6 / 21 / 3 / 1 (tras §21) y 3 / 24 / 3 / 1 (antes de CU-11/12 y CU-24).
+Total 31 (verificado fila por fila contra la tabla de la sección siguiente, corte F1 §24). **IMPLEMENTED no implica aceptación**: es verificación técnica automatizada; ningún CU está aceptado por el GAMW. Conteos históricos de esta tabla: 8 / 19 / 3 / 1 (tras §23), 6 / 21 / 3 / 1 (tras §21) y 3 / 24 / 3 / 1 (antes de CU-11/12 y CU-24).
 
 ## 3. Inventario de pruebas realmente ejecutadas (esta campaña, local/CI)
 
@@ -41,13 +41,13 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 03 Roles y permisos | RF-02 | A1 | `AutorizacionMunicipal/Operador`, CLI `ProvisionarPermisoMunicipal`, V10/V15/V17/V19 | `PaginaAdministracionUsuarios.tsx` | — | ITJ parcial `AutorizacionOperativaV19IT` (concesiones/revocación efectivas); gestión HTTP/UI: **—** | **PARTIAL**: catálogo de roles y límites A1 = D1 |
 | 04 Empresas | RF-03 | A1 | `EmpresasOperadorasController` | `PaginaOperadores.tsx` | — | ITD `RegistroOperativoIT`; E2E JWT `flujo-empresas-periodos.test.mjs` vía `EmpresasPeriodosNavegadorIT` (§23); E2E dev-local `RegistroPlanificacionWebIT`; VT `PaginaOperadores.test.tsx` | **IMPLEMENTED** (técnico, §23): A1 bajo JWT + `EMPRESAS_*`; D1 (qué actores en producción) y CA-04-07 (fallo de persistencia) pendientes/no demostrados |
 | 05 Periodos | RF-03 | A1 | `EmpresasOperadorasController`, `PeriodosPlanificacionController` | `PaginaOperadores.tsx` | — | ídem CU-04 | **IMPLEMENTED** (técnico, §23): A1 bajo JWT + `PERIODOS_*`; corrección incompatible con jornadas = 409; solapamiento sin política (permitido); D1 y CA-05-07 pendientes/no demostrados |
-| 06 Vehículos | RF-04 | A1 / A4 según ámbito | `VehiculosController`, `VinculosVehiculoEmpresaController` | `PaginaOperadores.tsx` (vínculos) | — | ITD `VehiculosIT`; E2E `vehiculos.test.mjs` (dev-local); VT `vehiculos.test.ts` | **PARTIAL**: escritura A4 sin alcance definido (D1); UI bajo JWT sin verificar |
-| 07 Responsables | RF-04 | A1 / A4 según ámbito | `PersonasController`, vínculos/funciones | `PaginaOperadores.tsx` | — | ITD `RegistroOperativoIT`; E2E dev-local | **PARTIAL**: ídem CU-06 |
+| 06 Vehículos | RF-04 | A1 / A4 según ámbito | `VehiculosController`, `VinculosVehiculoEmpresaController` | `PaginaOperadores.tsx` (vínculos) | — | ITD `VehiculosIT`; E2E JWT `flujo-vehiculos-personal.test.mjs` vía `VehiculosPersonalNavegadorIT` (§24); ITJ `FalloPersistenciaRegistroOperativoIT`, `ConcurrenciaPeriodoJornadaIT`; E2E dev-local `vehiculos.test.mjs`; VT `vehiculos.test.ts` | **IMPLEMENTED** (técnico, §24): A1 bajo JWT + `VEHICULOS_*`; cierre incompatible con asignaciones = 409. Pendiente: D1 (escritura A4 en su ámbito, sin conceder), catálogo real de tipos/marcas |
+| 07 Responsables | RF-04 | A1 / A4 según ámbito | `PersonasController`, vínculos/funciones | `PaginaOperadores.tsx` | — | ITD `RegistroOperativoIT`; E2E JWT `flujo-vehiculos-personal.test.mjs` vía `VehiculosPersonalNavegadorIT` (§24); ITJ `FalloPersistenciaRegistroOperativoIT`, `ConcurrenciaPeriodoJornadaIT`; E2E dev-local | **IMPLEMENTED** (técnico, §24): A1 bajo JWT + `PERSONAS_*`; cierre incompatible con asignaciones = 409. Pendiente: D1 (A4), criterios de conducción y obligatoriedad de cuenta (no inventados) |
 | 08 Estructura territorial | RF-05 | A1 | — | — | — | — | **INSTITUTIONALLY BLOCKED**: jerarquía y fuentes oficiales inexistentes (CU-08). No inventar |
 | 09 Rutas | RF-06 | **A4** (baseline) | `RutasReferenciaController`, V2/V3 versionado | `PaginaRutasReferencia.tsx` | — | ITD `RutasReferenciaIT`; E2E `rutas-referencia`; VT | **PARTIAL**: el código restringe a A1; escritura A4 sin alcance aprobado; UI bajo JWT sin verificar |
 | 10 Puntos de control / geocercas | RF-06 | A1 / A3 | `ReferenciasEspacialesController`, V12 | `PaginaReferenciasEspaciales.tsx` | — | **—** | **PARTIAL**: sin pruebas; fuentes/vigencia de geocercas por definir |
 | 11 Programar jornada | RF-07 | **A4** | `GestionarJornadas`, `PlanificarJornadasOperador`, `JornadasOperadorController` | `PaginaReprogramacionEmpresa.tsx` (`/empresa/jornadas`) ✔ UI A4; `PaginaJornadas.tsx` (municipal) | — | E2E `flujo-planificacion.test.mjs` vía `PlanificacionOperadorNavegadorIT` (UI A4, JWT, concesión de periodo) + REST; ITD `JornadasIT` (11); ITJ `AutorizacionOperativaV19IT` (6) | **IMPLEMENTED** (técnico, §13). Pendiente institucional: calendarios/horarios oficiales y D1 (no inventados); la creación de empresas/periodos/rutas se siembra por SQL |
-| 12 Asignar recursos | RF-07 | **A4** | ídem + `ReferenciasJornadas` | ídem | — | ídem (asignar, reasignar, historial, una abierta, recursos elegibles) | **IMPLEMENTED** (técnico, §13); alta de vínculos de recursos = CU-06/07 (A1), fuera de este corte |
+| 12 Asignar recursos | RF-07 | **A4** | ídem + `ReferenciasJornadas` | ídem | — | ídem (asignar, reasignar, historial, una abierta, recursos elegibles) | **IMPLEMENTED** (técnico, §13); alta de vínculos de recursos = CU-06/07 (A1, §24) |
 | 13 Ejecutar jornada | RF-08/09/10/11 | A5 | `EjecucionJornadasController`, `PosicionesGpsController`, `MisJornadasController`, V7–V9 | — | `pagina_operacion.dart`, SQLite, `ServicioCapturaGps.kt`, cola/sync | ITJ `EjecucionAutenticadaIT`, `EventosEjecucionIT`, `PosicionesGpsIT`, `CadenaOperativaFiscalizacionIT`; FT `test/auth/pagina_operacion_test.dart`; EMU `qa_emulador/cadena_offline_emulador_test.dart` (**GPS sintético**, no UI) | **PARTIAL**: GPS nativo, batería, segundo plano, fabricantes y CA-4A-21 sin QA física; el emulador no maneja la UI |
 | 14 Incidencia | RF-16 | A3/A4/A5 según ámbito | `ActuacionesController`, `GestionarActuaciones` | `PaginaCorrectivas.tsx` (lectura) | `panel_incidencias.dart` | REST en `FlujoMunicipalNavegadorIT` (alta, duplicado, tardía 409); móvil/web alta: **—** | **PARTIAL**: móvil sin pruebas; A4 y captura tardía/offline sin política |
 | 15 Monitorear posición | RF-12 | A3 / A4 | `MonitoreoController` | `PaginaMonitoreo.tsx` | — | E2E `flujo-monitoreo.test.mjs` vía `MonitoreoMunicipalNavegadorIT` (UI A3 + REST), §15 | **PARTIAL** (A3 verificado técnicamente, §15): A4 sigue bloqueado por D1 (sin permiso; 403) y falta QA de continuidad con ejecución real |
@@ -382,6 +382,32 @@ Verificado (local): `EmpresasPeriodosNavegadorIT` 1/1 (Chromium real + REST real
 | Autorización | **Verificado** | lector (`*_CONSULTAR`) consulta y no modifica (403); cuenta sin permiso y operador A4 = 403; sin token 401/403 |
 | D1 (actores autorizados en producción), obligatoriedad/formato del NIT, política de solapamiento | **PENDING** | no se inventaron |
 
+## 24. Cierre funcional F1 — CU-06 vehículos y CU-07 responsables operativos (A1, JWT) · RF-04
+
+Verificado (local): `VehiculosPersonalNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado, JWT y concesiones municipales explícitas `VEHICULOS_*`/`PERSONAS_*`/`EMPRESAS_CONSULTAR`) con `apps/web/e2e/flujo-vehiculos-personal.test.mjs`; `ConcurrenciaPeriodoJornadaIT` 7/7 y su variante con rol no propietario 7/7; `FalloPersistenciaRegistroOperativoIT` 5/5; unitarias 99/99; fase `verify` del CI con integración 148/148 (25 clases); regresión `RegistroOperativoIT` 11, `VehiculosIT` 8, `JornadasIT` 11, navegador de empresas/planificación/reprogramación.
+
+**Defecto corregido (probado):** cerrar un vínculo vehicular o de personal podía dejar fuera del vínculo jornadas ya asignadas con él (CU-06 E4, CU-07 E5, CA-06-04, CA-07-08). Ahora responde **409** con la misma regla de fecha de servicio America/La_Paz que la asignación; reabrir o cerrar en una fecha compatible sigue permitido. Concurrencia: el cierre bloquea la empresa (FOR UPDATE) y la asignación la lee con FOR SHARE (§23 H1), así que una asignación en curso hace que el cierre incompatible se rechace, y un cierre en curso hace que la asignación se rechace. Reproducido como fallo sin la regla (E2E y 2 casos de concurrencia).
+
+| Criterio | Estado | Evidencia |
+|---|---|---|
+| CA-06-01 placa única | **Verificado** | UI rechaza el duplicado; REST 409; una sola fila |
+| CA-06-02 vehículo sin empresa obligatoria | **Verificado** | se registra y consulta sin vínculo |
+| CA-06-03 vínculo histórico con empresa existente | **Verificado** | UI; empresa o vehículo inexistentes 404; fechas incoherentes 400 |
+| CA-06-04 cierre no modifica asignaciones pasadas | **Verificado** | asignación intacta; cierre que la dejaría fuera = 409 (límite exacto aceptado) |
+| CA-06-05 / CA-07-07 sin intervención fuera de alcance | **Verificado** | vínculo de otra empresa 404; A4 403 en lectura y escritura administrativas; lector 403 al escribir |
+| CA-06-06 sin referencias inexistentes | **Verificado** | REST 404 |
+| CA-06-07 regreso a empresa anterior conserva historia | **Verificado** | segmentos A (cerrado), B y nuevo A |
+| CU-06 E5 / CU-07 E6 error transaccional | **Verificado** (inyección) | 503; vehículo, vínculo y persona intactos; ningún vínculo sin funciones |
+| CA-07-01 persona sin Usuario | **Verificado** | ningún `usuario` creado |
+| CA-07-02 / 03 vínculo con al menos una función válida | **Verificado** | UI no envía sin función; Conductor / Supervisor del catálogo existente |
+| CA-07-04 funciones inactivas, duplicadas o inexistentes | **Verificado** | REST 400; ningún vínculo creado |
+| CA-07-05 cambio de función conserva el segmento | **Verificado** | segmento cerrado conserva CONDUCTOR; nuevo con SUPERVISOR |
+| CA-07-06 misma persona en otra empresa | **Verificado** | mismo `persona_id` en A y B |
+| CA-07-08 jornadas conservan el vínculo histórico | **Verificado** | asignación intacta; cierre incompatible 409, también sobre datos creados por la UI y asignados por A4 |
+| Revocación | **Verificado** | `VEHICULOS_GESTIONAR` revocado: el mismo token pasa a 403 al escribir y conserva la consulta |
+| Flujo A4 existente | **Verificado** (sin ampliar permisos) | con concesión por periodo ve los vínculos creados por A1 como recursos elegibles y asigna |
+| D1 (A4 sobre sus vehículos/personas), catálogo real de tipos, criterio de conducción, cuenta obligatoria | **PENDING** | no se inventaron |
+
 ## 9. Distinción final
 
-Los 8 CU «IMPLEMENTED» (01, 04, 05, 11, 12, 22, 24, 29) lo son en sentido **técnico**. Ningún CU tiene aceptación institucional; GPS físico, batería y comportamiento por fabricante siguen **PENDING** (QA en dispositivo real).
+Los 10 CU «IMPLEMENTED» (01, 04, 05, 06, 07, 11, 12, 22, 24, 29) lo son en sentido **técnico**. Ningún CU tiene aceptación institucional; GPS físico, batería y comportamiento por fabricante siguen **PENDING** (QA en dispositivo real).

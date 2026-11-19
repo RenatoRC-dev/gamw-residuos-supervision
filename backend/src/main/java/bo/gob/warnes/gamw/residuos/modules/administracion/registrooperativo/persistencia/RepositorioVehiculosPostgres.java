@@ -66,6 +66,13 @@ public class RepositorioVehiculosPostgres implements RepositorioVehiculos {
         jdbc.update("UPDATE vinculo_vehiculo_empresa SET fecha_fin=?,activo=?,actualizado_en=? WHERE id=? AND empresa_operadora_id=?",
                 v.fechaFin(),v.activo(),Timestamp.from(v.actualizadoEn()),v.id(),v.empresaOperadoraId());
     }
+    public long asignacionesPosterioresAlCierre(UUID vinculoId, java.time.LocalDate fin) {
+        // Misma regla de fecha de servicio que ReferenciasJornadas: inicio programado en America/La_Paz.
+        return jdbc.queryForObject("""
+            SELECT count(*) FROM asignacion_jornada a JOIN jornada j ON j.id=a.jornada_id
+             WHERE a.vinculo_vehiculo_empresa_id=? AND (j.inicio_programado AT TIME ZONE 'America/La_Paz')::date > ?
+            """,Long.class,vinculoId,fin);
+    }
     public Optional<VinculoVehiculoEmpresa> vinculo(UUID empresaId, UUID id) {
         return jdbc.query("SELECT * FROM vinculo_vehiculo_empresa WHERE empresa_operadora_id=? AND id=?",this::leerVinculo,empresaId,id).stream().findFirst();
     }

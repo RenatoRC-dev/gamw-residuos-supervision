@@ -34,6 +34,11 @@ public class GestionarVinculosVehiculoEmpresa {
     public VinculoVehiculoEmpresa cerrar(UUID empresaId,UUID vinculoId,LocalDate fechaFin,boolean activo) {
         empresas.buscar(empresaId,true);
         var anterior = repositorio.vinculo(empresaId,vinculoId).orElseThrow(() -> new RegistroNoEncontrado("Vínculo vehicular de la empresa no encontrado."));
+        // CU-06 E4 / CA-CU-06-04: el cierre no puede dejar fuera del vínculo jornadas ya asignadas con él. El bloqueo FOR UPDATE de la
+        // empresa (arriba) serializa este cierre con las asignaciones, que leen la empresa con FOR SHARE (ReferenciasJornadas).
+        long fuera = fechaFin == null ? 0 : repositorio.asignacionesPosterioresAlCierre(vinculoId,fechaFin);
+        if (fuera > 0) throw new ModificacionHistoricaIncompatible("El cierre dejaría " + fuera
+                + " asignación(es) de jornada fuera del vínculo vehicular; no se modifica el historial. Reasigne primero las jornadas futuras.");
         var vinculo = new VinculoVehiculoEmpresa(anterior.id(),anterior.vehiculoId(),anterior.empresaOperadoraId(),anterior.fechaInicio(),
                 fechaFin,activo,anterior.creadoEn(),Instant.now().truncatedTo(ChronoUnit.MICROS));
         repositorio.cerrarVinculo(vinculo); return vinculo;

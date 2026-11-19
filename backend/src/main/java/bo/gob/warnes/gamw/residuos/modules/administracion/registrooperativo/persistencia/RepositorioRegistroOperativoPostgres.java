@@ -86,6 +86,12 @@ public class RepositorioRegistroOperativoPostgres implements RepositorioRegistro
         jdbc.update("UPDATE vinculo_persona_empresa SET fecha_fin=?,activo=?,actualizado_en=? WHERE id=? AND empresa_operadora_id=?",
                 v.fechaFin(),v.activo(),Timestamp.from(v.actualizadoEn()),v.id(),v.empresaOperadoraId());
     }
+    public long asignacionesPosterioresAlCierre(UUID vinculoId, java.time.LocalDate fin) {
+        return jdbc.queryForObject("""
+            SELECT count(*) FROM asignacion_jornada a JOIN jornada j ON j.id=a.jornada_id
+             WHERE a.vinculo_persona_empresa_id=? AND (j.inicio_programado AT TIME ZONE 'America/La_Paz')::date > ?
+            """,Long.class,vinculoId,fin);
+    }
     public Optional<VinculoPersonaEmpresa> vinculo(UUID empresaId, UUID id) {
         return jdbc.query("SELECT * FROM vinculo_persona_empresa WHERE empresa_operadora_id=? AND id=?",this::leerVinculo,empresaId,id).stream().findFirst();
     }

@@ -20,6 +20,8 @@ public interface RepositorioVehiculos {
     List<Vehiculo> vehiculos();
     void insertarVinculo(VinculoVehiculoEmpresa vinculo);
     void cerrarVinculo(VinculoVehiculoEmpresa vinculo);
+    /** CU-06 E4: asignaciones (vigentes o históricas) hechas con el vínculo cuya fecha de servicio quedaría después de {@code fin}. */
+    long asignacionesPosterioresAlCierre(UUID vinculoId, java.time.LocalDate fin);
     Optional<VinculoVehiculoEmpresa> vinculo(UUID empresaId, UUID id);
     Optional<VinculoVehiculoEmpresa> vinculoPorId(UUID id);
     List<VinculoVehiculoEmpresa> vinculos(UUID empresaId);

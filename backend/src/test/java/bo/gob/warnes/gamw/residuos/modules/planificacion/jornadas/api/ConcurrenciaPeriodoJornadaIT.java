@@ -25,13 +25,15 @@ import static org.assertj.core.api.Assertions.*;
  * H1 (auditoría F1): carrera CU-05 (corrección de periodo / estado de empresa) contra CU-11/CU-24 (programación) en PostgreSQL aislado,
  * con el código real de los servicios y transacciones intercaladas de forma determinista (una queda abierta hasta que la otra espera un
  * bloqueo). Sin el bloqueo compartido del periodo/empresa al programar, la programación validaba con fechas ya corregidas por otra
- * transacción en curso y persistía una jornada fuera del periodo.
+ * transacción en curso y persistía una jornada fuera del periodo. También CU-06/CU-07: cierre de vínculo frente a asignación (CU-12).
  */
 @SpringBootTest(properties={"spring.config.import=","debug=false","logging.level.root=ERROR"})
 class ConcurrenciaPeriodoJornadaIT extends IntegracionPostgresV8 {
     @Autowired GestionarJornadas jornadas;
     @Autowired GestionarPeriodosServicio periodos;
     @Autowired GestionarEmpresasOperadoras empresas;
+    @Autowired bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.aplicacion.GestionarVinculosVehiculoEmpresa vinculosVehiculo;
+    @Autowired bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.aplicacion.GestionarPersonalEmpresa personal;
     @Autowired PlatformTransactionManager transacciones;
     @Autowired JdbcTemplate jdbc;
     private final ExecutorService hilos = Executors.newFixedThreadPool(2);
@@ -111,6 +113,58 @@ class ConcurrenciaPeriodoJornadaIT extends IntegracionPostgresV8 {
         assertThatThrownBy(() -> programar.get(15,TimeUnit.SECONDS)).hasCauseInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("deben estar activos");
         assertThat(jornadas(f)).isZero();
+    }
+
+    // ---------- CU-06 E4 / CU-07 E5 frente a CU-12: cierre de vínculo contra asignación ----------
+    private record Recursos(UUID jornada, UUID vinculoVehiculo, UUID vinculoPersona) { }
+    private Recursos recursos(Fixture f) {
+        UUID jornada=UUID.randomUUID(),vehiculo=UUID.randomUUID(),vv=UUID.randomUUID(),persona=UUID.randomUUID(),vp=UUID.randomUUID();
+        jdbc.update("INSERT INTO jornada VALUES (?,?,?,?,NULL,NULL,NULL,true,now(),now())",jornada,f.periodo(),f.version(),java.sql.Timestamp.from(JUNIO));
+        jdbc.update("INSERT INTO vehiculo(id,placa,activo,creado_en,actualizado_en) VALUES (?,?,true,now(),now())",vehiculo,("CC"+vehiculo).toUpperCase());
+        jdbc.update("INSERT INTO vinculo_vehiculo_empresa(id,vehiculo_id,empresa_operadora_id,fecha_inicio,fecha_fin,activo,creado_en,actualizado_en) VALUES (?,?,?,DATE '2026-01-01',NULL,true,now(),now())",vv,vehiculo,f.empresa());
+        jdbc.update("INSERT INTO persona_natural VALUES (?,?,?,NULL,NULL,NULL,true,now(),now())",persona,"CC-"+persona,"Persona concurrencia");
+        jdbc.update("INSERT INTO vinculo_persona_empresa VALUES (?,?,?,DATE '2026-01-01',NULL,true,now(),now())",vp,persona,f.empresa());
+        jdbc.update("INSERT INTO vinculo_persona_funcion VALUES (?,'00000000-0000-4000-8000-000000000001')",vp);
+        return new Recursos(jornada,vv,vp);
+    }
+    private int asignaciones(Recursos r) { return jdbc.queryForObject("SELECT count(*) FROM asignacion_jornada WHERE jornada_id=?",Integer.class,r.jornada()); }
+
+    @Test @Timeout(60)
+    void unCierreDeVinculoVehicularEnCursoHaceQueLaAsignacionSeRechace() throws Exception {
+        var f=fixture(); var r=recursos(f); var hecho=new CountDownLatch(1); var confirmar=new CountDownLatch(1);
+        var cierre=transaccionAbierta(() -> vinculosVehiculo.cerrar(f.empresa(),r.vinculoVehiculo(),LocalDate.parse("2026-05-31"),true),hecho,confirmar);
+        assertThat(hecho.await(15,TimeUnit.SECONDS)).isTrue();
+        var asignar=hilos.submit(() -> jornadas.asignar(r.jornada(),r.vinculoVehiculo(),r.vinculoPersona()));
+        esperarBloqueo();
+        confirmar.countDown(); cierre.get(15,TimeUnit.SECONDS);
+        assertThatThrownBy(() -> asignar.get(15,TimeUnit.SECONDS)).hasCauseInstanceOf(IllegalArgumentException.class).hasMessageContaining("no cubre");
+        assertThat(asignaciones(r)).isZero();
+    }
+
+    @Test @Timeout(60)
+    void unaAsignacionEnCursoHaceQueElCierreIncompatibleDelVehiculoSeRechace() throws Exception {
+        var f=fixture(); var r=recursos(f); var hecho=new CountDownLatch(1); var confirmar=new CountDownLatch(1);
+        var asignacion=transaccionAbierta(() -> jornadas.asignar(r.jornada(),r.vinculoVehiculo(),r.vinculoPersona()),hecho,confirmar);
+        assertThat(hecho.await(15,TimeUnit.SECONDS)).isTrue();
+        var cierre=hilos.submit(() -> vinculosVehiculo.cerrar(f.empresa(),r.vinculoVehiculo(),LocalDate.parse("2026-05-31"),true));
+        esperarBloqueo();
+        confirmar.countDown(); asignacion.get(15,TimeUnit.SECONDS);
+        assertThatThrownBy(() -> cierre.get(15,TimeUnit.SECONDS)).hasCauseInstanceOf(ModificacionHistoricaIncompatible.class);
+        assertThat(asignaciones(r)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT fecha_fin FROM vinculo_vehiculo_empresa WHERE id=?",Object.class,r.vinculoVehiculo())).isNull();
+    }
+
+    @Test @Timeout(60)
+    void unaAsignacionEnCursoHaceQueElCierreIncompatibleDelPersonalSeRechace() throws Exception {
+        var f=fixture(); var r=recursos(f); var hecho=new CountDownLatch(1); var confirmar=new CountDownLatch(1);
+        var asignacion=transaccionAbierta(() -> jornadas.asignar(r.jornada(),r.vinculoVehiculo(),r.vinculoPersona()),hecho,confirmar);
+        assertThat(hecho.await(15,TimeUnit.SECONDS)).isTrue();
+        var cierre=hilos.submit(() -> personal.actualizar(f.empresa(),r.vinculoPersona(),LocalDate.parse("2026-01-01"),LocalDate.parse("2026-05-31"),true));
+        esperarBloqueo();
+        confirmar.countDown(); asignacion.get(15,TimeUnit.SECONDS);
+        assertThatThrownBy(() -> cierre.get(15,TimeUnit.SECONDS)).hasCauseInstanceOf(ModificacionHistoricaIncompatible.class);
+        assertThat(asignaciones(r)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT fecha_fin FROM vinculo_persona_empresa WHERE id=?",Object.class,r.vinculoPersona())).isNull();
     }
 
     @Test @Timeout(60)
