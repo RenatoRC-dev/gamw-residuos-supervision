@@ -14,7 +14,14 @@ spring:
     hibernate:
       ddl-auto: validate
   flyway:
-    locations: classpath:db/migration
+    # INT-04: identidad de MIGRACIÓN separable de la de ejecución mediante SPRING_FLYWAY_USER y SPRING_FLYWAY_PASSWORD
+    # (Flyway abre entonces su propia conexión con ese rol propietario; DB_USERNAME queda como rol de ejecución no propietario).
+    # Sin esas variables se conserva el comportamiento anterior (misma conexión). No se fijan aquí para no forzar un valor vacío.
+    # Para aplicar las concesiones de mínimo privilegio: GAMW_FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/privilegios
+    # y GAMW_ROL_EJECUCION=<rol de ejecución>. Si se incluye db/privilegios sin un rol válido, la migración FALLA.
+    locations: ${GAMW_FLYWAY_LOCATIONS:classpath:db/migration}
+    placeholders:
+      rol_ejecucion: ${GAMW_ROL_EJECUCION:}
     clean-disabled: true
     validate-on-migrate: true
   mvc:

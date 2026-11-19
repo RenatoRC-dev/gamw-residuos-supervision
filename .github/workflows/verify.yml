@@ -59,7 +59,7 @@ jobs:
         run: |
           set +e
           sh ./mvnw --batch-mode --no-transfer-progress -U -Ppostgres-integration verify \
-            -Dit.test=FlywayBaselineIT,IntegridadHistoricaIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT \
+            -Dit.test=FlywayBaselineIT,IntegridadHistoricaIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT,MinimoPrivilegioEjecucionIT,*EjecucionNoPropietariaIT \
             > "$RUNNER_TEMP/mvn-it.log" 2>&1
           codigo=$?
           tail -n 400 "$RUNNER_TEMP/mvn-it.log"

@@ -26,6 +26,8 @@ public final class PostgresV8Aislado implements AutoCloseable {
     private final Path datos;
     private final int puerto;
     private final String clave = UUID.randomUUID().toString() + UUID.randomUUID();
+    private final String claveEjecucion = UUID.randomUUID().toString() + UUID.randomUUID();
+    public static final String ROL_EJECUCION = "gamw_app_ejecucion_it";
     private final String marca = UUID.randomUUID().toString();
     private int secuenciaProceso;
     private boolean iniciado;
@@ -61,7 +63,7 @@ public final class PostgresV8Aislado implements AutoCloseable {
             // En Linux (paquetes Debian/Ubuntu) el directorio de sockets Unix por defecto es /var/run/postgresql, no escribible por un usuario
             // sin privilegios: el arranque falla. Se desactivan los sockets Unix; todo acceso es TCP en 127.0.0.1 (más aislado, no menos).
             String sockets = WINDOWS ? "" : "unix_socket_directories=''\n";
-            Files.writeString(datos.resolve("postgresql.conf"), "\nlisten_addresses='127.0.0.1'\nport=" + puerto + "\n" + sockets, StandardCharsets.UTF_8,
+            Files.writeString(datos.resolve("postgresql.conf"), "\nlisten_addresses='127.0.0.1'\nport=" + puerto + "\nmax_connections=300\n" + sockets, StandardCharsets.UTF_8,
                     java.nio.file.StandardOpenOption.APPEND);
             // Un start fallido puede haber creado un proceso: close verifica PID y propiedad.
             iniciado = true;
@@ -78,6 +80,8 @@ public final class PostgresV8Aislado implements AutoCloseable {
                 }
                 sql.execute("ALTER ROLE gamw_bootstrap_it PASSWORD '" + clave + "'");
                 sql.execute("CREATE ROLE gamw_app_dev LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '" + clave + "'");
+                // INT-04: identidad de EJECUCIÓN sin propiedad ni atributos privilegiados (sus concesiones las aplica db/privilegios).
+                sql.execute("CREATE ROLE " + ROL_EJECUCION + " LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT PASSWORD '" + claveEjecucion + "'");
                 for (String base : List.of("gamw_v8_clean", "gamw_v8_upgrade")) {
                     sql.execute("CREATE DATABASE " + base + " OWNER gamw_app_dev TEMPLATE template0");
                 }
@@ -105,7 +109,7 @@ public final class PostgresV8Aislado implements AutoCloseable {
             close();
             // No imprimir SQL, contraseñas ni mensajes JDBC que pudieran incluirlos.
             throw new IllegalStateException("Falló el aprovisionamiento o migración del clúster nuevo: "
-                    + error.getClass().getSimpleName() + ". " + String.valueOf(error.getMessage()).replace(clave, "[oculto]")
+                    + error.getClass().getSimpleName() + ". " + String.valueOf(error.getMessage()).replace(clave, "[oculto]").replace(claveEjecucion, "[oculto]")
                     + ". Sin fallback; diagnóstico: " + raiz);
         }
     }
@@ -121,6 +125,9 @@ public final class PostgresV8Aislado implements AutoCloseable {
     public String urlLimpia() { return url("gamw_v8_clean"); }
     public String usuario() { return "gamw_app_dev"; }
     public String clave() { return clave; }
+    /** Identidad de ejecución no propietaria (INT-04); solo la usan las pruebas de mínimo privilegio. */
+    public String usuarioEjecucion() { return ROL_EJECUCION; }
+    public String claveEjecucion() { return claveEjecucion; }
 
     public Connection conexion(boolean actualizacion) throws Exception {
         verificarProcesoPropio();
@@ -146,6 +153,10 @@ public final class PostgresV8Aislado implements AutoCloseable {
         catch (Exception error) { throw new IllegalStateException("No se verifica la propiedad del clúster; Flyway bloqueado."); }
         var configuracion = Flyway.configure().dataSource(url(actualizacion ? "gamw_v8_upgrade" : "gamw_v8_clean"), usuario(), clave)
                 .locations("classpath:db/migration").cleanDisabled(true).validateOnMigrate(true);
+        // Base limpia en la última versión: además aplica el callback de mínimo privilegio con la identidad de migración.
+        // La base de actualización se migra por objetivos intermedios (p. ej. V7/V8), donde las tablas aún no existen.
+        if (!actualizacion && objetivo == null)
+            configuracion.locations("classpath:db/migration", "classpath:db/privilegios").placeholders(java.util.Map.of("rol_ejecucion", ROL_EJECUCION));
         if (objetivo != null) configuracion.target(objetivo);
         return configuracion.load();
     }

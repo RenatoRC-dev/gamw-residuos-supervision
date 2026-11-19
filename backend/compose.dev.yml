@@ -8,6 +8,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env}
       APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in backend/.env}
+      # INT-04 opcional: identidad de ejecución no propietaria (ver docs/despliegue/RUNBOOK_INT04_ROLES_BD.md).
+      APP_RUNTIME_DB_PASSWORD: ${APP_RUNTIME_DB_PASSWORD:-}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
