@@ -303,6 +303,13 @@ Verificado (local): `DesviosDetencionesNavegadorIT` 1/1 (Chromium real + REST re
 | Contexto de incidencias asociadas | **Brecha de aceptación** | la revisión no muestra incidencias (la UI lo declara); no existe asociación autorizada que mostrar en este corte |
 | Criterios institucionales y GPS físico | **PENDING** | no resueltos |
 
+## 20. Intento de validación física CU-13 / CA-4A-21 (2026-11-19) — **BLOCKED**
+
+- Comando: `adb devices -l` (SDK local `platform-tools`) → **ningún dispositivo conectado**. Solo existe el AVD `Medium_Phone` (emulador: GPS sintético, ya cubierto por `android-emulator-qa.yml`; **no** sustituye la QA física).
+- Sin dispositivo no se ejecutó: permiso real de ubicación, captura/precisión/marcas reales, pérdida de Internet con GPS activo, durabilidad tras reinicio del proceso, sincronización idempotente por REST real, `capturadoEn` ≠ `recibidoEn` reales, evidencia en PostGIS/monitoreo ni FIN con posiciones pendientes. Todos esos criterios quedan **BLOCKED** (no PASS). No se modificó código ni datos del dispositivo.
+- CI: el Browser E2E de `43f0ca4` falló en el paso de instalación de PostgreSQL/PostGIS por `apt` (código 100; fallo externo de paquetes, las pruebas no llegaron a ejecutarse); no es una regresión de la aplicación y no se cambió código para sortearlo.
+- CU-13 sigue **PARTIAL** (sin cambio de clasificación).
+
 ## 9. Distinción final
 
 Los 2 CU «IMPLEMENTED» lo son en sentido **técnico**. Ningún CU tiene aceptación institucional; GPS físico, batería y comportamiento por fabricante siguen **PENDING** (QA en dispositivo real).
