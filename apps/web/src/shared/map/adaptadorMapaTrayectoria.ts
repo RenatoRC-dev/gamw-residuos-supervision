@@ -1,13 +1,14 @@
 import { Map as LibreMap, LngLatBounds, NavigationControl, Popup, setWorkerUrl, type GeoJSONSource } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { FeatureCollection, Point, LineString } from 'geojson';
-import { mapConfig } from './mapConfig';
+import { AVISO_SIN_MAPA_BASE, mapConfig } from './mapConfig';
 
 setWorkerUrl(workerUrl);
 export function crearMapaTrayectoria(elemento: HTMLElement, aviso: (texto: string) => void) {
   const vacio: FeatureCollection = { type: 'FeatureCollection', features: [] };
   const mapa = new LibreMap({ container: elemento, style: mapConfig.style, center: mapConfig.center, zoom: mapConfig.zoom });
   mapa.addControl(new NavigationControl(), 'top-right');
+  if (mapConfig.sinMapaBase) aviso(AVISO_SIN_MAPA_BASE);
   let listo = false;
   let destruido = false;
   let ajustado = false;

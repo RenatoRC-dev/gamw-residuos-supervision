@@ -6,12 +6,13 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { TerraDraw, TerraDrawPointMode, TerraDrawPolygonMode, TerraDrawSelectMode } from 'terra-draw';
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
 import type { FeatureCollection, Geometry } from 'geojson';
-import { mapConfig } from './mapConfig';
+import { AVISO_SIN_MAPA_BASE, mapConfig } from './mapConfig';
 
 setWorkerUrl(workerUrl);
 export function crearMapaReferencias(nodo: HTMLElement, cambio: (g: Geometry | null) => void, error: (s: string) => void) {
   const mapa = new LibreMap({ container: nodo, style: mapConfig.style, center: mapConfig.center, zoom: mapConfig.zoom });
   mapa.addControl(new NavigationControl());
+  if (mapConfig.sinMapaBase) error(AVISO_SIN_MAPA_BASE);
   let dibujo: TerraDraw | null = null, destruido = false;
   let referencias: FeatureCollection = { type: 'FeatureCollection', features: [] };
   const publicar = () => cambio(dibujo?.getSnapshot().find(f => ['point', 'polygon'].includes(String(f.properties.mode)))?.geometry ?? null);
