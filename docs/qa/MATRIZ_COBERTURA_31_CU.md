@@ -1,6 +1,6 @@
 # Matriz de cobertura de los 31 CU — auditoría funcional (baseline `6db0d1e`; actualizada en `c1f0ce3` [CU-22] y en el corte CU-20)
 
-> Conteo vigente tras los cortes CU-22, CU-20, CU-26, CU-11/12 (§13) y CU-24 (§14). **IMPLEMENTED 6 (01, 11, 12, 22, 24, 29) · PARTIAL 21 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1.** «IMPLEMENTED» = verificación técnica automatizada, NO aceptación institucional del GAMW. CU-26 y CU-20 permanecen PARTIAL (solo subconjuntos verificados, §11-12). Conteos anteriores (históricos, ya no vigentes): 5/22/3/1 tras CU-11/12 y **3/24/3/1** antes de ellos. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
+> Conteo vigente tras los cortes CU-22, CU-20, CU-26, CU-11/12 (§13), CU-24 (§14) y F1 CU-04/05 (§23). **IMPLEMENTED 8 (01, 04, 05, 11, 12, 22, 24, 29) · PARTIAL 19 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1.** «IMPLEMENTED» = verificación técnica automatizada, NO aceptación institucional del GAMW. CU-26 y CU-20 permanecen PARTIAL (solo subconjuntos verificados, §11-12). Conteos anteriores (históricos, ya no vigentes): 5/22/3/1 tras CU-11/12 y **3/24/3/1** antes de ellos. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
 
 **Naturaleza:** nació como auditoría de solo lectura; las secciones §10 en adelante registran cortes posteriores con implementación y pruebas. Evidencia = rutas de archivos del repositorio y resultados ya ejecutados en esta campaña.
 **Distinción obligatoria:** *verificación técnica automatizada* ≠ *aceptación institucional*. Ningún CU está aceptado por el GAMW.
@@ -18,12 +18,12 @@ Fuentes: `docs/context/GAMW_BASELINE_FUNCIONAL_CU01_CU31_v1_0.md` (actores), `do
 
 | Estado | Cantidad | CU |
 |---|---|---|
-| IMPLEMENTED | **6** | 01, 11, 12, 22, 24, 29 (22 desde §10; 11/12 desde §13; 24 desde §14) |
-| PARTIAL | **21** | 02, 03, 04, 05, 06, 07, 09, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 26, 27, 28 |
+| IMPLEMENTED | **8** | 01, 04, 05, 11, 12, 22, 24, 29 (22 desde §10; 11/12 desde §13; 24 desde §14; 04/05 desde §23) |
+| PARTIAL | **19** | 02, 03, 06, 07, 09, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 26, 27, 28 |
 | INSTITUTIONALLY BLOCKED | **3** | 08, 25, 31 (31: código listo, acceso denegado por D1) |
 | NOT IMPLEMENTED | **1** | 30 |
 
-Total 31 (verificado fila por fila contra la tabla de la sección siguiente, corte de remediación §21). **IMPLEMENTED no implica aceptación**: es verificación técnica automatizada; ningún CU está aceptado por el GAMW. Conteo histórico de esta tabla antes de los cortes CU-11/12 y CU-24: 3 / 24 / 3 / 1.
+Total 31 (verificado fila por fila contra la tabla de la sección siguiente, corte F1 §23). **IMPLEMENTED no implica aceptación**: es verificación técnica automatizada; ningún CU está aceptado por el GAMW. Conteos históricos de esta tabla: 6 / 21 / 3 / 1 (tras §21) y 3 / 24 / 3 / 1 (antes de CU-11/12 y CU-24).
 
 ## 3. Inventario de pruebas realmente ejecutadas (esta campaña, local/CI)
 
@@ -39,8 +39,8 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 01 Autenticar | RF-01 | todos | `modules/administracion/identidad/api/AutenticacionController`, `shared/security/*` | `PaginaAcceso.tsx` | `shared/auth/sesion.dart`, `pagina_operacion.dart` | ITJ `ContratoHttpAutenticacionTests`, `AutenticacionWebIT` (E2E 2/2); VT `PaginaAcceso.test.tsx`; FT `test/auth/*`, `sesion_almacen_ilegible_test.dart`; EMU | **IMPLEMENTED** (técnico). Pendiente: aceptación; política institucional de sesión |
 | 02 Gestionar usuarios | RF-02 | A1 | `identidad/gestion/AdministrarIdentidad`, `AdministracionIdentidadController` | `PaginaAdministracionUsuarios.tsx` | — | **—** (sin IT/VT/E2E); solo SQL de actuaciones en `BitacoraEventosIT` | **PARTIAL**: código sin pruebas; provisión/reactivación/administradores bloqueados por D1 |
 | 03 Roles y permisos | RF-02 | A1 | `AutorizacionMunicipal/Operador`, CLI `ProvisionarPermisoMunicipal`, V10/V15/V17/V19 | `PaginaAdministracionUsuarios.tsx` | — | ITJ parcial `AutorizacionOperativaV19IT` (concesiones/revocación efectivas); gestión HTTP/UI: **—** | **PARTIAL**: catálogo de roles y límites A1 = D1 |
-| 04 Empresas | RF-03 | A1 | `EmpresasOperadorasController` | `PaginaOperadores.tsx` | — | ITD `RegistroOperativoIT`; E2E dev-local `RegistroPlanificacionWebIT`; VT `PaginaOperadores.test.tsx` | **PARTIAL**: UI no verificada bajo JWT+permiso `EMPRESAS_*`; solo modo local |
-| 05 Periodos | RF-03 | A1 | `EmpresasOperadorasController`, `PeriodosPlanificacionController` | `PaginaOperadores.tsx` | — | ídem CU-04 | **PARTIAL**: ídem; política de solapamiento/edición = institucional |
+| 04 Empresas | RF-03 | A1 | `EmpresasOperadorasController` | `PaginaOperadores.tsx` | — | ITD `RegistroOperativoIT`; E2E JWT `flujo-empresas-periodos.test.mjs` vía `EmpresasPeriodosNavegadorIT` (§23); E2E dev-local `RegistroPlanificacionWebIT`; VT `PaginaOperadores.test.tsx` | **IMPLEMENTED** (técnico, §23): A1 bajo JWT + `EMPRESAS_*`; D1 (qué actores en producción) y CA-04-07 (fallo de persistencia) pendientes/no demostrados |
+| 05 Periodos | RF-03 | A1 | `EmpresasOperadorasController`, `PeriodosPlanificacionController` | `PaginaOperadores.tsx` | — | ídem CU-04 | **IMPLEMENTED** (técnico, §23): A1 bajo JWT + `PERIODOS_*`; corrección incompatible con jornadas = 409; solapamiento sin política (permitido); D1 y CA-05-07 pendientes/no demostrados |
 | 06 Vehículos | RF-04 | A1 / A4 según ámbito | `VehiculosController`, `VinculosVehiculoEmpresaController` | `PaginaOperadores.tsx` (vínculos) | — | ITD `VehiculosIT`; E2E `vehiculos.test.mjs` (dev-local); VT `vehiculos.test.ts` | **PARTIAL**: escritura A4 sin alcance definido (D1); UI bajo JWT sin verificar |
 | 07 Responsables | RF-04 | A1 / A4 según ámbito | `PersonasController`, vínculos/funciones | `PaginaOperadores.tsx` | — | ITD `RegistroOperativoIT`; E2E dev-local | **PARTIAL**: ídem CU-06 |
 | 08 Estructura territorial | RF-05 | A1 | — | — | — | — | **INSTITUTIONALLY BLOCKED**: jerarquía y fuentes oficiales inexistentes (CU-08). No inventar |
@@ -353,6 +353,32 @@ Fuente: `AUDITORIA_INTEGRIDAD_HISTORICA_GAMW_20261119.md` (revisión estática d
 
 Pruebas locales: `IntegridadHistoricaIT` 4/4; perfil `postgres-integration` (11 IT de CI + `IntegridadHistoricaIT`): 98 unitarias + 69 de integración, 0 fallos; 20 clases de integración y E2E de navegador con base compartida (148 pruebas) + `ReclamoInstitucionalIT`, `InspeccionCampoIT`, `VehiculosIT`, `RegistroOperativoIT`, `ContextoMisJornadasIT`, `IdentidadPostgresIT` en verde. Riesgo restante: la tabla `ruta` (cabecera) admite DELETE cuando no tiene versiones (sin historia dependiente); no se cambió.
 
+## 23. Cierre funcional F1 — CU-04 empresas y CU-05 periodos (A1, JWT) · RF-03
+
+Verificado (local): `EmpresasPeriodosNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado, JWT y concesiones municipales explícitas `EMPRESAS_*`/`PERIODOS_*`) con `apps/web/e2e/flujo-empresas-periodos.test.mjs`; regresión `RegistroOperativoIT` 11, `RegistroPlanificacionWebIT` 2, `VehiculosIT` 8, `JornadasIT` 11; web `tsc` + build + vitest 73.
+
+**Defectos corregidos (probados en este corte):**
+1. *Interfaz:* la página cargaba empresas, personas y funciones con `Promise.all`; un A1 sin `PERSONAS_*` (permiso independiente) no veía ninguna empresa. Ahora cada sección se carga por separado e informa su propia falta de permiso.
+2. *CU-05 E3 / CA-CU-05-06:* corregir las fechas de un periodo podía dejar fuera jornadas ya registradas en él. Ahora responde **409** si alguna jornada del periodo quedaría fuera (misma regla de fecha de servicio America/La_Paz que la programación; bloqueo de la fila del periodo). No es una política de solapamiento.
+
+| Criterio | Estado | Evidencia |
+|---|---|---|
+| CA-04-01 registrar con razón social válida; obligatoria | **Verificado** | UI (sin petición si falta) y REST 400 |
+| CA-04-02 NIT único | **Verificado** | UI muestra el rechazo; REST 409; una sola fila |
+| CA-04-03 varios periodos sin duplicar identidad | **Verificado** | dos periodos coexistentes de la misma empresa |
+| CA-04-04 desactivación preserva periodos y jornadas | **Verificado** (vínculos de personal no ejercitados aquí) | empresa inactiva sigue listada; su periodo y la jornada intactos y consultables |
+| CA-04-05 modificar no reescribe referencias | **Verificado** | edición de nombre comercial; id generado por el servidor (un id enviado se ignora) |
+| CA-04-06 sin eliminación física | **Verificado** | sin endpoint DELETE (403/405) |
+| CA-04-07 / CA-05-07 fallo de persistencia | **No demostrado** | sin inyección de fallos; operaciones transaccionales |
+| CA-05-01 periodo vinculado a empresa registrada | **Verificado** | empresa inexistente 404; periodo de otra empresa 404 |
+| CA-05-02 fechas inconsistentes | **Verificado** | UI muestra el rechazo; REST 400 |
+| CA-05-03 consulta de periodos de empresa inactiva | **Verificado** | REST 200 y UI |
+| CA-05-04 jornadas mantienen su periodo | **Verificado** | `periodo_servicio_id` intacto tras correcciones |
+| CA-05-05 sin restricción de solapamiento inventada | **Verificado** | periodos solapados aceptados |
+| CA-05-06 corrección incompatible rechazada | **Verificado** | UI y REST 409; límite exacto (fecha de servicio = fin) aceptado |
+| Autorización | **Verificado** | lector (`*_CONSULTAR`) consulta y no modifica (403); cuenta sin permiso y operador A4 = 403; sin token 401/403 |
+| D1 (actores autorizados en producción), obligatoriedad/formato del NIT, política de solapamiento | **PENDING** | no se inventaron |
+
 ## 9. Distinción final
 
-Los 6 CU «IMPLEMENTED» (01, 11, 12, 22, 24, 29) lo son en sentido **técnico**. Ningún CU tiene aceptación institucional; GPS físico, batería y comportamiento por fabricante siguen **PENDING** (QA en dispositivo real).
+Los 8 CU «IMPLEMENTED» (01, 04, 05, 11, 12, 22, 24, 29) lo son en sentido **técnico**. Ningún CU tiene aceptación institucional; GPS físico, batería y comportamiento por fabricante siguen **PENDING** (QA en dispositivo real).

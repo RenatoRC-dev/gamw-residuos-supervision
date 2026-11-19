@@ -35,6 +35,11 @@ public class GestionarPeriodosServicio {
         empresas.buscar(empresaId,true);
         var anterior = obtener(empresaId,id);
         var periodo = new PeriodoServicio(id,empresaId,fechaInicio,fechaFin,anterior.activo(),anterior.creadoEn(),Instant.now().truncatedTo(ChronoUnit.MICROS));
+        // CU-05 E3 / CA-CU-05-06: una corrección de fechas no puede dejar fuera del periodo jornadas ya registradas en él
+        // (desnaturalizaría su referencia histórica). No es una política de solapamiento: solo protege lo ya programado.
+        long fuera = repositorio.jornadasFueraDeFechas(id,periodo.fechaInicio(),periodo.fechaFin());
+        if (fuera > 0) throw new ModificacionHistoricaIncompatible("La corrección dejaría " + fuera
+                + " jornada(s) ya registrada(s) fuera del periodo; no se modifica el historial.");
         repositorio.actualizarPeriodo(periodo);
         return periodo;
     }

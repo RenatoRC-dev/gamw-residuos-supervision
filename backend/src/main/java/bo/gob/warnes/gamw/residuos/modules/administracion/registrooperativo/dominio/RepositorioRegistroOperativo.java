@@ -20,6 +20,8 @@ public interface RepositorioRegistroOperativo {
     List<PeriodoServicio> periodos(UUID empresaId);
     Optional<PeriodoServicio> periodoPorId(UUID id);
     List<PeriodoServicio> todosPeriodos();
+    /** CU-05 E3: jornadas ya registradas del periodo cuya fecha de servicio (America/La_Paz) quedaría fuera de [inicio, fin]. */
+    long jornadasFueraDeFechas(UUID periodoId, java.time.LocalDate inicio, java.time.LocalDate fin);
     void insertarVinculo(VinculoPersonaEmpresa vinculo);
     void actualizarVinculo(VinculoPersonaEmpresa vinculo);
     Optional<VinculoPersonaEmpresa> vinculo(UUID empresaId, UUID id);

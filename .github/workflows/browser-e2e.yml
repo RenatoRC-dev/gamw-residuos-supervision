@@ -72,7 +72,7 @@ jobs:
         run: |
           set +e
           sh ./mvnw --batch-mode --no-transfer-progress \
-            -Dtest=FlujoMunicipalNavegadorIT,PlanificacionOperadorNavegadorIT,ReprogramacionOperadorNavegadorIT,MonitoreoMunicipalNavegadorIT,TrayectoriaMunicipalNavegadorIT,IntegridadGpsNavegadorIT,CoincidenciasEspacialesNavegadorIT,DesviosDetencionesNavegadorIT,AutenticacionWebIT,RegistroPlanificacionWebIT -Dsurefire.failIfNoSpecifiedTests=false test \
+            -Dtest=FlujoMunicipalNavegadorIT,PlanificacionOperadorNavegadorIT,ReprogramacionOperadorNavegadorIT,MonitoreoMunicipalNavegadorIT,TrayectoriaMunicipalNavegadorIT,IntegridadGpsNavegadorIT,CoincidenciasEspacialesNavegadorIT,DesviosDetencionesNavegadorIT,EmpresasPeriodosNavegadorIT,AutenticacionWebIT,RegistroPlanificacionWebIT -Dsurefire.failIfNoSpecifiedTests=false test \
             > "$RUNNER_TEMP/mvn-e2e.log" 2>&1
           codigo=$?
           grep -viE 'authorization|bearer|eyJ' "$RUNNER_TEMP/mvn-e2e.log" > "$RUNNER_TEMP/mvn-e2e-sanitizado.log"

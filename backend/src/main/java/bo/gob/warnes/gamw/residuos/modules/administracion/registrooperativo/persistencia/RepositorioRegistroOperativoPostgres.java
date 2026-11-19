@@ -47,8 +47,16 @@ public class RepositorioRegistroOperativoPostgres implements RepositorioRegistro
         jdbc.update("UPDATE periodo_servicio SET fecha_inicio=?,fecha_fin=?,activo=?,actualizado_en=? WHERE id=? AND empresa_operadora_id=?",
                 p.fechaInicio(),p.fechaFin(),p.activo(),Timestamp.from(p.actualizadoEn()),p.id(),p.empresaOperadoraId());
     }
+    public long jornadasFueraDeFechas(UUID periodoId, java.time.LocalDate inicio, java.time.LocalDate fin) {
+        // Misma regla que ReferenciasJornadas: fecha de servicio = inicio programado en America/La_Paz.
+        return jdbc.queryForObject("""
+            SELECT count(*) FROM jornada WHERE periodo_servicio_id=?
+              AND ((inicio_programado AT TIME ZONE 'America/La_Paz')::date < ? OR (inicio_programado AT TIME ZONE 'America/La_Paz')::date > ?)
+            """,Long.class,periodoId,inicio,fin);
+    }
     public Optional<PeriodoServicio> periodo(UUID empresaId, UUID id) {
-        return jdbc.query("SELECT * FROM periodo_servicio WHERE empresa_operadora_id=? AND id=?",this::leerPeriodo,empresaId,id).stream().findFirst();
+        // Bloqueo de la fila: serializa la corrección de fechas con la programación de jornadas del mismo periodo.
+        return jdbc.query("SELECT * FROM periodo_servicio WHERE empresa_operadora_id=? AND id=? FOR UPDATE",this::leerPeriodo,empresaId,id).stream().findFirst();
     }
     public List<PeriodoServicio> periodos(UUID empresaId) {
         return jdbc.query("SELECT * FROM periodo_servicio WHERE empresa_operadora_id=? ORDER BY fecha_inicio,id",this::leerPeriodo,empresaId);

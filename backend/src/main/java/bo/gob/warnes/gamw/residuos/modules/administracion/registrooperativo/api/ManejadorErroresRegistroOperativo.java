@@ -23,6 +23,8 @@ public class ManejadorErroresRegistroOperativo {
     }
     @ExceptionHandler(RegistroNoEncontrado.class)
     public ProblemDetail noEncontrado(RegistroNoEncontrado error) { return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,error.getMessage()); }
+    @ExceptionHandler(bo.gob.warnes.gamw.residuos.modules.administracion.registrooperativo.aplicacion.ModificacionHistoricaIncompatible.class)
+    public ProblemDetail historiaIncompatible(RuntimeException error) { return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,error.getMessage()); }
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail datosInvalidos(IllegalArgumentException error) { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,error.getMessage()); }
     @ExceptionHandler(DataIntegrityViolationException.class)

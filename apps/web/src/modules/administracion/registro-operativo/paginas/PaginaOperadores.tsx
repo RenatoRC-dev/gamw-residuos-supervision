@@ -30,23 +30,36 @@ export function PaginaOperadores() {
   const [clavePeriodo, setClavePeriodo] = useState(0);
   const [claveVinculo, setClaveVinculo] = useState(0);
 
+  // Cada sección se carga por separado: los permisos municipales son independientes (EMPRESAS_*, PERIODOS_*, PERSONAS_*,
+  // VEHICULOS_*). Que falte uno no debe ocultar las secciones autorizadas; cada falta se informa en su propia sección.
+  const [errorPersonas, setErrorPersonas] = useState('');
+  const [errorPeriodos, setErrorPeriodos] = useState('');
+  const [errorPersonal, setErrorPersonal] = useState('');
+  const motivo = (r: PromiseRejectedResult, porDefecto: string) => r.reason instanceof Error ? r.reason.message : porDefecto;
   useEffect(() => {
     const abort = new AbortController();
     setCargando(true);
-    Promise.all([api.empresas(abort.signal), api.personas(abort.signal), api.funciones(abort.signal)])
-      .then(([e, p, f]) => { if (!abort.signal.aborted) { setEmpresas(e); setPersonas(p); setFunciones(f); } })
-      .catch(e => { if (!abort.signal.aborted) setError(e instanceof Error ? e.message : 'No se pudo cargar el registro.'); })
+    Promise.allSettled([api.empresas(abort.signal), api.personas(abort.signal), api.funciones(abort.signal)])
+      .then(([e, p, f]) => {
+        if (abort.signal.aborted) return;
+        if (e.status === 'fulfilled') setEmpresas(e.value); else { setEmpresas([]); setError(motivo(e, 'No se pudo cargar el registro de empresas.')); }
+        if (p.status === 'fulfilled' && f.status === 'fulfilled') { setPersonas(p.value); setFunciones(f.value); setErrorPersonas(''); }
+        else { setPersonas([]); setFunciones([]); setErrorPersonas(motivo((p.status === 'rejected' ? p : f) as PromiseRejectedResult, 'No se pudo cargar personas.')); }
+      })
       .finally(() => { if (!abort.signal.aborted) setCargando(false); });
     return () => abort.abort();
   }, [revision]);
 
   useEffect(() => {
     const abort = new AbortController();
-    setPeriodos([]); setPersonal([]);
+    setPeriodos([]); setPersonal([]); setErrorPeriodos(''); setErrorPersonal('');
     if (empresaId) {
-      Promise.all([api.periodos(empresaId, abort.signal), api.personal(empresaId, abort.signal)])
-        .then(([p, v]) => { if (!abort.signal.aborted) { setPeriodos(p); setPersonal(v); } })
-        .catch(e => { if (!abort.signal.aborted) setError(e instanceof Error ? e.message : 'No se pudo cargar la empresa.'); });
+      Promise.allSettled([api.periodos(empresaId, abort.signal), api.personal(empresaId, abort.signal)])
+        .then(([p, v]) => {
+          if (abort.signal.aborted) return;
+          if (p.status === 'fulfilled') setPeriodos(p.value); else setErrorPeriodos(motivo(p, 'No se pudo cargar los periodos.'));
+          if (v.status === 'fulfilled') setPersonal(v.value); else setErrorPersonal(motivo(v, 'No se pudo cargar el personal.'));
+        });
     }
     return () => abort.abort();
   }, [empresaId, revision]);
@@ -138,6 +151,7 @@ export function PaginaOperadores() {
       <section aria-labelledby="personas-titulo">
         <h2 id="personas-titulo">Personas naturales</h2>
         <p>Identidad independiente de la empresa. Cerrar un vínculo no elimina la persona.</p>
+        {errorPersonas && <p role="note">Personas no disponibles: {errorPersonas}</p>}
         <label>Persona existente<select value={personaId} onChange={e => setPersonaId(e.target.value)}>
           <option value="">Seleccione una persona</option>
           {personas.map(p => <option key={p.id} value={p.id}>{p.ci} · {p.nombres} {p.apellidoPaterno ?? ''} {p.apellidoMaterno ?? ''}{p.activo ? '' : ' · Inactiva'}</option>)}
@@ -161,6 +175,8 @@ export function PaginaOperadores() {
         <h2 id="empresa-seleccionada-titulo">Empresa seleccionada: {empresaSeleccionada.razonSocial}</h2>
         <section aria-labelledby="periodos-titulo">
           <h3 id="periodos-titulo">Periodos de servicio</h3>
+          {errorPeriodos && <p role="note">Periodos no disponibles: {errorPeriodos}</p>}
+          <p>Se conservan los periodos históricos (activos e inactivos). Los periodos pueden coexistir: no se aplica una política de solapamiento.</p>
           <ul>{periodos.map(p => <li key={p.id}>{p.fechaInicio} — {p.fechaFin} · {p.activo ? 'Activo' : 'Inactivo'}
             <button onClick={() => { setPeriodoEditado(p); setClavePeriodo(c => c + 1); }}>Editar periodo</button>
             <button onClick={() => void ejecutar(async () => { await api.estadoPeriodo(empresaId, p.id, !p.activo); })}>{p.activo ? 'Desactivar periodo' : 'Activar periodo'}</button>
@@ -174,6 +190,7 @@ export function PaginaOperadores() {
         </section>
         <section aria-labelledby="personal-titulo">
           <h3 id="personal-titulo">Personal de la empresa</h3>
+          {errorPersonal && <p role="note">Personal no disponible: {errorPersonal}</p>}
           <ul>{personal.map(v => <li key={v.id}>{v.persona.ci} · {v.persona.nombres} · {v.fechaInicio} — {v.fechaFin ?? 'Sin cierre'} · {v.activo ? 'Activo' : 'Inactivo'}
             <span> · {v.funcionesOperativas.map(f => f.nombre).join(', ') || 'Sin funciones asignadas'}</span>
             <button onClick={() => { setVinculoEditado(v); setPersonaId(v.personaId); setClaveVinculo(c => c + 1); }}>Editar vínculo</button>
