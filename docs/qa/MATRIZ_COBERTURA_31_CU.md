@@ -53,7 +53,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 15 Monitorear posición | RF-12 | A3 / A4 | `MonitoreoController` | `PaginaMonitoreo.tsx` | — | E2E `flujo-monitoreo.test.mjs` vía `MonitoreoMunicipalNavegadorIT` (UI A3 + REST), §15 | **PARTIAL** (A3 verificado técnicamente, §15): A4 sigue bloqueado por D1 (sin permiso; 403) y falta QA de continuidad con ejecución real |
 | 16 Trayectoria GPS | RF-12 | A3 / **A4** | `TrayectoriasController`, `ConsultarTrayectoriasAutorizadas` | `PaginaTrayectorias.tsx`, `MapaTrayectoria.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E `flujo-municipal.test.mjs` (tabla, orden, hueco, «inferidos»); E2E `flujo-trayectoria.test.mjs` vía `TrayectoriaMunicipalNavegadorIT` (§16) | **PARTIAL**: A3 verificado técnicamente (§16); A4 sin acceso (D1 pendiente); el lienzo del mapa/teselas y los marcadores **no** se verifican |
 | 17 Continuidad/integridad GPS | RF-13 | A3 | `RevisionGpsController`, `RevisarEvidenciaGps` | `PaginaRevisionGps.tsx` | — | E2E `flujo-integridad-gps.test.mjs` vía `IntegridadGpsNavegadorIT` (§17) | **PARTIAL**: A3 verificado técnicamente con umbrales provisionales explícitos (§17); pendientes umbrales institucionales (PENDING-04) y validación con GPS físico |
-| 18 Coincidencias | RF-14 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; vigencia/precisión de puntos |
+| 18 Coincidencias | RF-14 | A3 | ídem | ídem | — | E2E `flujo-coincidencias-gps.test.mjs` vía `CoincidenciasEspacialesNavegadorIT` (§18) | **PARTIAL**: A3 verificado técnicamente con radios y tolerancias provisionales explícitos (§18); pendientes reglas institucionales de puntos de control y validación con GPS físico |
 | 19 Desvíos y detenciones | RF-15 | A3 | ídem | ídem | — | **—** | **PARTIAL**: ídem; candidatos técnicos sin dictamen |
 | 20 Inspección y evidencias | RF-17 | A3 | `FiscalizacionController` (`POST …/inspecciones`, JSON y multipart), `GestionarFiscalizacion.inspeccionar`, `PoliticaEvidenciasCampo` | `PaginaFiscalizacion.tsx` + `FormularioInspeccion.tsx` | — | ITJ `InspeccionCampoIT` (4); E2E `flujo-inspeccion.test.mjs` (UI, JWT) vía `FlujoMunicipalNavegadorIT` | **PARTIAL** (subconjunto sin fotografías verificado, §11): fotos/archivos (CA-20-03/04), FA-02/FA-03 y política PENDING-09 sin verificar o bloqueados |
 | 21 Fiscalizar y resultado | RF-18 | A3 | `GestionarFiscalizacion` | `PaginaFiscalizacion.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E expediente (lectura) | **PARTIAL / emisión bloqueada**: catálogo oficial PENDING-05 vacío; emisión en UI no probada; rectificación no definida |
@@ -261,6 +261,26 @@ Verificado (local): `IntegridadGpsNavegadorIT` 1/1 (Chromium real + REST real + 
 | Huecos no se atribuyen a Internet, detención, fraude o incumplimiento | **Verificado** | todas las señales POR_REVISAR; textos «no se conoce la causa», «no equivale a GPS desactivado…»; sin veredictos |
 | Solo lectura | **Verificado** | UI solo GET; recuento de GPS igual; evidencia inmutable |
 | Umbrales institucionales (PENDING-04) y GPS físico | **PENDING** | no resueltos |
+
+## 18. Actualización — corte CU-18 (coincidencias espaciales) · RF-14
+
+Verificado (local): `CoincidenciasEspacialesNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado) con `apps/web/e2e/flujo-coincidencias-gps.test.mjs`. Sin cambios de código de producción: no se detectó ningún defecto. Conteos sin cambio (CU-18 permanece PARTIAL). Radios (50 y 100 m), geocerca y tolerancia de precisión (50 m; 3 m en una variante) son **provisionales y explícitos en la prueba**; no se inventó política del GAMW. CU-19 no se tocó. La base de la JVM es compartida: la prueba solo verifica los identificadores sembrados y no asume totales globales.
+
+| Criterio | Estado | Prueba |
+|---|---|---|
+| Punto con radio explícito (ST_DWithin, geography, metros) | **Verificado** | coincidencia observada, sin coincidencia y radio exacto: radio = distancia calculada → observada (límite inclusivo); 0,01 m por fuera → insuficiente por precisión; 10 m por fuera → sin coincidencia |
+| Geocerca (ST_Covers) | **Verificado** | interior y borde exacto del polígono = observada; exterior = no; «Geocerca poligonal sin radio» |
+| EPSG:4326, distancias en metros, precisión reportada | **Verificado** | `distanciaMinimaMetros` igual a la distancia geography calculada; muestra de 60 m de precisión hace incierto un control a 100 m con radio 50 m |
+| Cuatro resultados distintos | **Verificado** | COINCIDENCIA_OBSERVADA, SIN_COINCIDENCIA_OBSERVADA, EVIDENCIA_INSUFICIENTE (sin muestras aplicables, sin muestras precisas o proximidad incierta) |
+| RutaVersion correcta y versiones históricas de la referencia | **Verificado** | un control de otra RutaVersion y uno con vigencia futura no aparecen ni afectan; dos versiones de una misma referencia se evalúan por separado |
+| Vigencia por `capturado_en` (no por recepción) | **Verificado** | una muestra capturada antes de `vigente_desde` pero recibida después no cuenta; `vigente_desde` inclusivo y `vigente_hasta` exclusivo en la captura exacta |
+| Sincronización tardía y recálculo | **Verificado** | una captura tardía cambia conteos (6 muestras, 3 observadas) sin alterar la evidencia original; las ventanas posteriores no cambian |
+| Cero muestras / cero referencias / límites | **Verificado** | EVIDENCIA_INSUFICIENTE_SIN_REFERENCIAS_APLICABLES; «Sin referencias aplicables…»; 101 controles → 100 mostrados, LIMITE_REFERENCIAS y REVISION_PARCIAL; 5001 muestras → 5000 analizadas, parcial |
+| Trazabilidad | **Verificado** | marcas de captura/recepción originales, precisión, identificador de la versión de referencia, primera/última coincidencia |
+| Acceso, revocación, inexistente, solo lectura | **Verificado** | sin token 401/403; A4, cuenta sin permiso y permiso de OTRA revisión = 403 sin datos; revocado = 403; jornada inexistente 404; parámetros inválidos = 400; GPS y referencias intactos; referencia histórica inmutable |
+| No convierte coincidencia en recolección, presencia ni cumplimiento | **Verificado** | la UI y la política lo declaran; sin esos términos en la pantalla |
+| Observación | **Anotada** | una coincidencia observada con baja precisión sigue clasificándose como observada (la precisión se informa en la limitación, no cambia el estado); no se modificó: sería una decisión de política |
+| Reglas institucionales de puntos y GPS físico | **PENDING** | no resueltos |
 
 ## 9. Distinción final
 
