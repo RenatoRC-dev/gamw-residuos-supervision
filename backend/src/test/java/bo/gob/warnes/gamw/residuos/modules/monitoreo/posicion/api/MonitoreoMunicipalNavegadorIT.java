@@ -124,11 +124,20 @@ class MonitoreoMunicipalNavegadorIT extends IntegracionPostgresV8 {
         assertThat(r.headers().firstValue("Cache-Control").orElse("")).contains("no-store");
         JsonNode v=json.readTree(r.body());
         assertThat(v.get("umbralAntiguedadSegundos").asLong()).isEqualTo(600);
-        assertThat(v.get("jornadas")).as("solo con INICIO y sin FIN").hasSize(5);
-        Map<String,JsonNode> porId=new HashMap<>();
-        v.get("jornadas").forEach(j -> porId.put(j.get("contexto").get("jornadaId").asText(),j));
-        assertThat(porId.keySet()).containsExactlyInAnyOrder(ja.toString(),jt.toString(),js.toString(),jn.toString(),jb.toString());
-        assertThat(v.get("jornadas").get(0).get("contexto").get("jornadaId").asText()).as("orden por INICIO registrado descendente").isEqualTo(ja.toString());
+        // La base es compartida por la JVM: otras pruebas pueden dejar jornadas activas legítimas. Se verifican SOLO los identificadores sembrados aquí.
+        Map<String,JsonNode> porId=new LinkedHashMap<>();
+        for(int desde=0,siguiente=0;siguiente>=0;) {
+            var pagina=json.readTree(get("/api/monitoreo/jornadas?limite=100&desplazamiento="+desde,tm).body());
+            pagina.get("jornadas").forEach(j -> porId.put(j.get("contexto").get("jornadaId").asText(),j));
+            siguiente=pagina.get("siguiente").isNull()?-1:pagina.get("siguiente").asInt(); desde=siguiente;
+        }
+        assertThat(porId.keySet()).as("las cinco jornadas con INICIO y sin FIN sembradas").contains(ja.toString(),jt.toString(),js.toString(),jn.toString(),jb.toString());
+        assertThat(porId.keySet()).as("la cerrada y la no iniciada quedan excluidas").doesNotContain(jcerrada.toString(),jsinInicio.toString());
+        List<String> orden=new ArrayList<>(porId.keySet());
+        assertThat(orden.indexOf(ja.toString())).as("orden por INICIO registrado descendente").isLessThan(orden.indexOf(jt.toString()));
+        assertThat(orden.indexOf(jt.toString())).isLessThan(orden.indexOf(js.toString()));
+        assertThat(orden.indexOf(js.toString())).isLessThan(orden.indexOf(jn.toString()));
+        assertThat(orden.indexOf(jn.toString())).isLessThan(orden.indexOf(jb.toString()));
         var pa=porId.get(ja.toString()).get("ultimaPosicion");
         assertThat(pa.get("capturaId").asText()).as("última por captura, no por recepción").isEqualTo(capA.toString());
         assertThat(Instant.parse(pa.get("capturadoEn").asText())).isEqualTo(ahora.minusSeconds(10));
@@ -142,11 +151,18 @@ class MonitoreoMunicipalNavegadorIT extends IntegracionPostgresV8 {
         assertThat(get("/api/monitoreo/jornadas?limite=0",tm).statusCode()).isEqualTo(400);
         assertThat(get("/api/monitoreo/jornadas?limite=101",tm).statusCode()).isEqualTo(400);
         assertThat(get("/api/monitoreo/jornadas?desplazamiento=-1",tm).statusCode()).isEqualTo(400);
-        var p1=json.readTree(get("/api/monitoreo/jornadas?limite=2&desplazamiento=0",tm).body());
-        var p2=json.readTree(get("/api/monitoreo/jornadas?limite=2&desplazamiento=2",tm).body());
-        var p3=json.readTree(get("/api/monitoreo/jornadas?limite=2&desplazamiento=4",tm).body());
-        assertThat(p1.get("siguiente").asInt()).isEqualTo(2); assertThat(p2.get("siguiente").asInt()).isEqualTo(4); assertThat(p3.get("siguiente").isNull()).isTrue();
-        assertThat(p1.get("jornadas").size()+p2.get("jornadas").size()+p3.get("jornadas").size()).isEqualTo(5);
+        // Paginación de a 2 recorrida hasta el final: sin repetidos ni omisiones respecto del listado completo, en el mismo orden.
+        List<String> paginadas=new ArrayList<>();
+        int desde=0;
+        while(true) {
+            var pagina=json.readTree(get("/api/monitoreo/jornadas?limite=2&desplazamiento="+desde,tm).body());
+            assertThat(pagina.get("jornadas").size()).isLessThanOrEqualTo(2);
+            pagina.get("jornadas").forEach(j -> paginadas.add(j.get("contexto").get("jornadaId").asText()));
+            if(pagina.get("siguiente").isNull()) break;
+            assertThat(pagina.get("siguiente").asInt()).isEqualTo(desde+2);
+            desde=pagina.get("siguiente").asInt();
+        }
+        assertThat(paginadas).as("recorrido paginado = listado completo").containsExactlyElementsOf(orden);
         // Acceso: sin token, token inválido, sin permiso y A4 (D1: no se concede monitoreo).
         assertThat(get("/api/monitoreo/jornadas",null).statusCode()).isIn(401,403);
         assertThat(get("/api/monitoreo/jornadas","no.es.un.token").statusCode()).isIn(401,403);

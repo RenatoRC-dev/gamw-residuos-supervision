@@ -212,7 +212,7 @@ Verificado (local): `MonitoreoMunicipalNavegadorIT` 1/1 (Chromium real + REST re
 
 | Criterio | Estado | Prueba |
 |---|---|---|
-| A3 ve solo jornadas con INICIO y sin FIN | **Verificado** | 5 de 7 sembradas; la cerrada y la no iniciada no aparecen (REST y UI) |
+| A3 ve solo jornadas con INICIO y sin FIN | **Verificado** | las 5 jornadas sembradas con INICIO y sin FIN (por identificador exacto) aparecen una sola vez; la cerrada y la no iniciada no aparecen (REST y UI). La base de la JVM es compartida con otras pruebas, que pueden dejar jornadas activas legítimas: la prueba no asume el total y recorre todas las páginas (corrección tras el fallo de CI 44450526391, que esperaba exactamente 5 y recibió 6) |
 | Última posición por `capturado_en` (no `recibido_en`), incluida sincronización tardía | **Verificado** | muestra recibida después pero capturada antes no gana (REST y UI) |
 | Desempate estable | **Verificado** | empate de captura: gana `captura_id` mayor (los `id` de fila no se probaron como segundo desempate) |
 | Captura, recepción, coordenadas, precisión y antigüedad | **Verificado** | valores exactos en REST y en la fila; jornada antigua rotulada «Sin lectura reciente» |

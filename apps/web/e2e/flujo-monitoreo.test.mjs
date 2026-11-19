@@ -37,7 +37,9 @@ test('CU-15: A3 monitorea últimas posiciones recibidas (orden por captura, resp
     await ingresar(d.municipal);
     await abrirMonitoreo();
     // Solo jornadas con INICIO y sin FIN: a, t, s, n (empresa A) y b (empresa B). La cerrada y la no iniciada no aparecen.
-    await page.waitForFunction(() => document.querySelectorAll('tbody tr').length === 5);
+    // La base puede contener otras jornadas activas legítimas de otras pruebas: se verifican exactamente las cinco sembradas aquí.
+    await fila(d.jornadas.b).waitFor();
+    for (const k of ['a', 't', 's', 'n', 'b']) assert.equal(await fila(d.jornadas[k]).count(), 1, `Una fila exacta para ${k}.`);
     for (const k of ['cerrada', 'sinInicio']) assert.equal(await page.getByText(d.jornadas[k]).count(), 0, `No se muestra ${k}.`);
     assert.equal(await page.getByText('Consulta periódica cada 5 s', { exact: false }).count(), 1);
     await page.getByText('No es seguimiento instantáneo.', { exact: false }).waitFor();
@@ -46,7 +48,8 @@ test('CU-15: A3 monitorea últimas posiciones recibidas (orden por captura, resp
     await mapa.waitFor();
     assert.deepEqual(await mapa.evaluate(n => [getComputedStyle(n).position, getComputedStyle(n).overflow]), ['relative', 'hidden']);
     const referencia = page.locator('select').filter({ has: page.locator(`option[value="${d.jornadas.a}"]`) });
-    assert.equal(await referencia.locator('option').count(), 6, 'Marcador + 5 jornadas.');
+    for (const k of ['a', 't', 's', 'n', 'b']) assert.equal(await referencia.locator(`option[value="${d.jornadas[k]}"]`).count(), 1, `Opción exacta para ${k}.`);
+    for (const k of ['cerrada', 'sinInicio']) assert.equal(await referencia.locator(`option[value="${d.jornadas[k]}"]`).count(), 0);
     await referencia.selectOption(d.jornadas.t);
     await referencia.selectOption(d.jornadas.a);
 
@@ -83,7 +86,7 @@ test('CU-15: A3 monitorea últimas posiciones recibidas (orden por captura, resp
     await contexto.setOffline(true);
     await page.getByRole('button', { name: 'Actualizar ahora' }).click();
     await page.getByText('Sin actualización de red. Se conserva la última evidencia recibida, no una ubicación actual garantizada.').waitFor();
-    assert.equal(await page.locator('tbody tr').count(), 5, 'La evidencia conservada sigue visible.');
+    for (const k of ['a', 't', 's', 'n', 'b']) assert.equal(await fila(d.jornadas[k]).count(), 1, `La evidencia conservada de ${k} sigue visible.`);
     await contexto.setOffline(false);
     await page.getByRole('button', { name: 'Actualizar ahora' }).click();
     await page.getByText('Sin actualización de red.', { exact: false }).waitFor({ state: 'detached' });
