@@ -17,12 +17,16 @@ export interface RevisionGps {
     observadas: number; primera: string | null; ultima: string | null; distanciaMinimaMetros: number | null;
     limitacion: string; geometria: Geometry }[];
 }
+/** Conserva el estado HTTP para que la interfaz distinga sesión vencida (401) de falta de permiso (403). */
+export class ErrorRevisionGps extends Error {
+  constructor(message: string, readonly estado: number) { super(message); this.name = 'ErrorRevisionGps'; }
+}
 export async function revisarGps(token: string, jornada: string, tipo: TipoRevision, parametros: ParametrosRevision, signal: AbortSignal): Promise<RevisionGps> {
   const consulta = new URLSearchParams(Object.entries(parametros).map(([k, v]) => [k, String(v)]));
   const r = await fetch(`${apiConfig.baseUrl}/revision-gps/jornadas/${encodeURIComponent(jornada)}/${tipo}?${consulta}`, {
     headers: { Authorization: `Bearer ${token}` }, signal, credentials: 'omit', redirect: 'error', cache: 'no-store',
   });
-  if (!r.ok) throw new Error(r.status === 403 ? 'No dispone del permiso específico para esta revisión.' : r.status === 401
-    ? 'Sesión vencida; vuelva a autenticarse.' : 'No se pudo revisar. Compruebe jornada y parámetros; no se ha alterado evidencia.');
+  if (!r.ok) throw new ErrorRevisionGps(r.status === 403 ? 'No dispone del permiso específico para esta revisión.' : r.status === 401
+    ? 'Sesión vencida; vuelva a autenticarse.' : 'No se pudo revisar. Compruebe jornada y parámetros; no se ha alterado evidencia.', r.status);
   return r.json() as Promise<RevisionGps>;
 }

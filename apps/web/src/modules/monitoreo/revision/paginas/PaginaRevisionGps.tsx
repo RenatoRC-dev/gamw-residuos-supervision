@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSesionActual } from '../../../administracion/identidad/aplicacion/contextoAutenticacion';
-import { revisarGps, type ParametrosRevision, type RevisionGps, type TipoRevision } from '../api/revisionGps';
+import { ErrorRevisionGps, revisarGps, type ParametrosRevision, type RevisionGps, type TipoRevision } from '../api/revisionGps';
 import { MapaRevisionGps } from '../componentes/MapaRevisionGps';
 
 export function PaginaRevisionGps() {
-  const { sesion } = useSesionActual(); const [parametros] = useSearchParams();
+  const { sesion, cerrar } = useSesionActual(); const [parametros] = useSearchParams();
   return <main><Link to="/">Inicio</Link><h1>Revisión técnica de evidencia GPS</h1>
     <p>Señales para revisión humana; no son sanciones, fraude comprobado ni cumplimiento de recolección.</p>
-    {sesion ? <PanelRevisionGps key={`${sesion.tokenAcceso}:${parametros.get('jornada') ?? ''}`} token={sesion.tokenAcceso} inicial={parametros.get('jornada') ?? ''} /> : <Link to="/acceso">Autenticarse</Link>}
+    {sesion ? <PanelRevisionGps key={`${sesion.tokenAcceso}:${parametros.get('jornada') ?? ''}`} token={sesion.tokenAcceso} inicial={parametros.get('jornada') ?? ''} vencer={cerrar} /> : <Link to="/acceso">Autenticarse</Link>}
   </main>;
 }
 const iniciales: ParametrosRevision = { huecoSegundos: 120, precisionMetros: 50, velocidadKmh: 120,
@@ -16,28 +16,42 @@ const iniciales: ParametrosRevision = { huecoSegundos: 120, precisionMetros: 50,
 const etiquetas: Record<keyof ParametrosRevision, string> = { huecoSegundos: 'Separación temporal (s)', precisionMetros: 'Precisión reportada máxima (m)',
   velocidadKmh: 'Velocidad candidata máxima (km/h)', desvioMetros: 'Separación de ruta (m)', radioDetencionMetros: 'Radio técnico de agrupación (m)',
   detencionSegundos: 'Duración candidata de detención (s)', antiguedadSegundos: 'Antigüedad de captura (s)' };
-export function PanelRevisionGps({ token, inicial }: { token: string; inicial: string }) {
+/** Identidad inmutable de una consulta: un resultado solo se muestra si coincide con el contexto visible del formulario. */
+const claveConsulta = (token: string, jornada: string, tipo: TipoRevision, p: ParametrosRevision) => JSON.stringify([token, jornada.trim(), tipo, p]);
+export function PanelRevisionGps({ token, inicial, vencer }: { token: string; inicial: string; vencer?: (mensaje?: string) => void }) {
   const [jornada, setJornada] = useState(inicial), [tipo, setTipo] = useState<TipoRevision>('integridad');
-  const [parametros, setParametros] = useState<ParametrosRevision>(iniciales), [datos, setDatos] = useState<RevisionGps | null>(null);
+  const [parametros, setParametros] = useState<ParametrosRevision>(iniciales);
+  const [resultado, setResultado] = useState<{ clave: string; datos: RevisionGps } | null>(null);
   const [error, setError] = useState(''), [avisoMapa, setAvisoMapa] = useState(''), [cargando, setCargando] = useState(false);
   const peticion = useRef<AbortController | null>(null);
-  useEffect(() => () => peticion.current?.abort(), []);
+  // H-01: cualquier cambio de jornada, tipo, umbral o sesión cancela la consulta pendiente y retira el resultado o error anterior.
+  const invalidar = () => { peticion.current?.abort(); peticion.current = null; setResultado(null); setError(''); setAvisoMapa(''); setCargando(false); };
+  useEffect(() => () => { peticion.current?.abort(); peticion.current = null; }, [token]);
+  const vigente = claveConsulta(token, jornada, tipo, parametros);
+  const datos = resultado && resultado.clave === vigente ? resultado.datos : null;
   const consultar = async (e: FormEvent) => {
     e.preventDefault(); peticion.current?.abort(); const abort = new AbortController(); peticion.current = abort;
-    setDatos(null); setError(''); setAvisoMapa(''); setCargando(true);
-    try { const r = await revisarGps(token, jornada, tipo, parametros, abort.signal); if (!abort.signal.aborted) setDatos(r); }
-    catch (e) { if (!abort.signal.aborted) setError((e as Error).message); }
-    finally { if (!abort.signal.aborted) setCargando(false); }
+    const clave = vigente, solicitada = { jornada: jornada.trim(), tipo, parametros };
+    setResultado(null); setError(''); setAvisoMapa(''); setCargando(true);
+    const actual = () => peticion.current === abort && !abort.signal.aborted;
+    try {
+      const r = await revisarGps(token, solicitada.jornada, solicitada.tipo, solicitada.parametros, abort.signal);
+      if (actual()) setResultado({ clave, datos: r });
+    } catch (err) {
+      if (!actual()) return;
+      setError((err as Error).message);
+      if (err instanceof ErrorRevisionGps && err.estado === 401) vencer?.('Sesión vencida. Vuelva a autenticarse.');
+    } finally { if (actual()) { setCargando(false); peticion.current = null; } }
   };
   return <>
     <form onSubmit={consultar}>
-      <label>Jornada UUID<input required value={jornada} onChange={e => { setJornada(e.target.value); setDatos(null); }} /></label>
-      <label>Revisión<select value={tipo} onChange={e => { setTipo(e.target.value as TipoRevision); setDatos(null); }}>
+      <label>Jornada UUID<input required value={jornada} onChange={e => { invalidar(); setJornada(e.target.value); }} /></label>
+      <label>Revisión<select value={tipo} onChange={e => { invalidar(); setTipo(e.target.value as TipoRevision); }}>
         <option value="integridad">CU-17 · Continuidad e integridad</option><option value="coincidencias">CU-18 · Coincidencias espaciales</option>
         <option value="desvios">CU-19 · Separaciones y detenciones candidatas</option></select></label>
       <fieldset><legend>Umbrales técnicos PROVISIONALES, no contractuales</legend>
         {(Object.keys(etiquetas) as (keyof ParametrosRevision)[]).map(k => <label key={k}>{etiquetas[k]}
-          <input type="number" required min="0.001" max="1000000" step="any" value={parametros[k]} onChange={e => setParametros(p => ({ ...p, [k]: Number(e.target.value) }))} />
+          <input type="number" required min="0.001" max="1000000" step="any" value={parametros[k]} onChange={e => { invalidar(); setParametros(p => ({ ...p, [k]: Number(e.target.value) })); }} />
         </label>)}
       </fieldset>
       <button disabled={cargando}>Revisar muestras recibidas</button>
@@ -46,6 +60,7 @@ export function PanelRevisionGps({ token, inicial }: { token: string; inicial: s
     {!datos && !cargando && !error && <p>Seleccione una jornada desde monitoreo/trayectoria o indique su UUID. Cada revisión exige su permiso específico.</p>}
     {datos && <section aria-label="Resultado técnico de revisión">
       <h2>{datos.estado}</h2><p>{datos.politica}</p>
+      <p>Resultado de la consulta vigente: revisión {tipo} · jornada {datos.jornadaId}.</p>
       <p>Jornada {datos.jornadaId} · RutaVersion {datos.rutaVersionId} · Cálculo {datos.calculadoEn}</p>
       <p>Muestras recibidas {datos.muestrasDisponibles}; analizadas {datos.muestrasAnalizadas}. {datos.parcial ? 'RESULTADO PARCIAL: límite de cálculo alcanzado.' : 'Solo se evalúa la evidencia recibida; pueden faltar capturas offline.'}</p>
       <p>Última captura: {datos.ultimaCaptura ?? 'No disponible'} · Última recepción: {datos.ultimaRecepcion ?? 'No disponible'}</p>
