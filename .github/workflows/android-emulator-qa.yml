@@ -95,6 +95,33 @@ jobs:
           done
           echo "::error title=Compilación Android fallida::flutter build apk --debug falló 3 veces; revise el registro (dependencias remotas o error de compilación Kotlin/Dart)."
           exit 1
+      - name: Imagen de sistema API 34 Google APIs x86_64 (instalación verificada con reintentos acotados)
+        # Run 44542445731: el APK compiló, pero la instalación de la imagen dentro de android-emulator-runner falló con
+        # «Error on ZipFile unknown archive» (descarga corrupta/incompleta). Se instala ANTES con verificación real del contenido;
+        # el runner la encontrará instalada. Misma imagen (API 34, google_apis, x86_64); la QA no cambia.
+        run: |
+          set -u
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          PAQUETE='system-images;android-34;google_apis;x86_64'
+          IMG="$SDK/system-images/android-34/google_apis/x86_64"
+          yes | "$SDKM" --licenses > /dev/null || true
+          verificar() {
+            [ -s "$IMG/system.img" ] && [ -s "$IMG/source.properties" ] && [ -s "$IMG/build.prop" -o -s "$IMG/vendor.img" ] \
+              && grep -q 'AndroidVersion.ApiLevel=34' "$IMG/source.properties" && grep -q 'SystemImage.TagId=google_apis' "$IMG/source.properties" \
+              && grep -q 'SystemImage.Abi=x86_64' "$IMG/source.properties"
+          }
+          for i in 1 2 3; do
+            if "$SDKM" --install "$PAQUETE" 'emulator' 'platform-tools' && verificar; then
+              echo "Imagen verificada (intento $i):"; grep -E 'Pkg.Revision|AndroidVersion.ApiLevel|SystemImage' "$IMG/source.properties"; ls -l "$IMG/system.img"
+              exit 0
+            fi
+            echo "Instalación o verificación de la imagen falló (intento $i); se eliminan solo sus artefactos temporales en el runner efímero."
+            rm -rf "$IMG" "$SDK/.temp" "$HOME/.android/cache"
+            sleep $((i * 30))
+          done
+          echo "::error title=Imagen de sistema Android no disponible::No se pudo descargar/verificar $PAQUETE tras 3 intentos (infraestructura de descarga de Google; la QA no se ejecutó)."
+          exit 1
       - name: QA en emulador (API 34, x86_64)
         env:
           GRADLE_OPTS: -Dorg.gradle.internal.repository.max.retries=6 -Dorg.gradle.internal.repository.initial.backoff=2000
