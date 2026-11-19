@@ -50,44 +50,24 @@ jobs:
           done
           echo "::error title=Infraestructura apt no disponible::No se pudieron instalar postgresql-16/postgis desde apt tras 3 intentos; las pruebas no se ejecutaron (no es un fallo de la aplicación)."
           exit 1
-      - name: Resolver plugins y dependencias (reintentos acotados ante fallos transitorios del repositorio)
-        working-directory: backend
-        # Run 44537269267: maven-failsafe-plugin:3.5.6 (versión existente en Maven Central) no se pudo resolver de forma transitoria.
-        # Solo descarga; las pruebas NO se omiten: se ejecutan completas en el paso siguiente.
-        # Run 44544583001: los reintentos reutilizaban la resolución fallida en caché (*.lastUpdated). -U obliga a reconsultar.
-        # Coordenadas explícitas del plugin (versión 3.10.0, la gestionada por el parent): sin resolución de prefijo «dependency:».
-        # Solo se reintenta ante errores de descarga/red; cualquier otro error falla de inmediato.
-        run: |
-          set +e
-          for i in 1 2 3; do
-            sh ./mvnw --batch-mode --no-transfer-progress -U -Ppostgres-integration \
-              -Daether.connector.http.retryHandler.count=5 -Daether.connector.http.retryHandler.requestSentEnabled=true \
-              org.apache.maven.plugins:maven-dependency-plugin:3.10.0:resolve-plugins \
-              org.apache.maven.plugins:maven-dependency-plugin:3.10.0:resolve > "$RUNNER_TEMP/mvn-resolver.log" 2>&1
-            codigo=$?
-            [ "$codigo" -eq 0 ] && exit 0
-            causa=$(grep -m 5 -E 'could not be resolved|Could not (resolve|transfer)|status code|Connection|timed out|Network is unreachable|Remote host terminated' "$RUNNER_TEMP/mvn-resolver.log" | cut -c1-240 | sed ':a;N;$!ba;s/\n/%0A/g')
-            if [ -z "$causa" ]; then
-              tail -n 60 "$RUNNER_TEMP/mvn-resolver.log"
-              echo "::error title=Fallo de resolución no relacionado con la red::No se reintenta: revise el registro."
-              exit "$codigo"
-            fi
-            echo "Resolución falló por descarga/red (intento $i)"; echo "$causa" | sed 's/%0A/\n/g'; sleep $((i * 30))
-          done
-          tail -n 60 "$RUNNER_TEMP/mvn-resolver.log"
-          echo "::error title=Repositorio Maven no disponible::No se resolvieron plugins/dependencias tras 3 intentos con -U; las pruebas no se ejecutaron (infraestructura). Causa: ${causa}"
-          exit 1
       - name: Integración esencial (Flyway V1–V21, seguridad, cadena operativa, historial, bitácora)
         working-directory: backend
-        # El resultado no se altera: falla si falla Maven. Solo se publica una anotación con las líneas de error para diagnóstico.
+        # El resultado no se altera: falla si falla Maven; no se reintenta (una aserción funcional fallida nunca se repite).
+        # Run 44583215350: la pre-resolución con dependency:resolve-plugins descargaba plugins que este ciclo no usa (p. ej.
+        # maven-site-plugin) y fallaba antes de las pruebas. Se elimina: el ciclo verify resuelve solo lo que ejecuta; -U reconsulta
+        # resoluciones remotas fallidas en caché. La anotación distingue fallo de descarga remota de fallo de la aplicación.
         run: |
           set +e
-          sh ./mvnw --batch-mode --no-transfer-progress -Ppostgres-integration verify \
+          sh ./mvnw --batch-mode --no-transfer-progress -U -Ppostgres-integration verify \
             -Dit.test=FlywayBaselineIT,IntegridadHistoricaIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT \
             > "$RUNNER_TEMP/mvn-it.log" 2>&1
           codigo=$?
           tail -n 400 "$RUNNER_TEMP/mvn-it.log"
-          if [ "$codigo" -ne 0 ]; then
+          if [ "$codigo" -ne 0 ] && grep -qE 'could not be resolved|Could not (resolve|transfer)|status code: 5[0-9][0-9]|Connection (reset|refused|timed out)' "$RUNNER_TEMP/mvn-it.log" \
+             && ! grep -qE 'Tests run: [0-9]+' "$RUNNER_TEMP/mvn-it.log"; then
+            remoto=$(grep -m 4 -E 'could not be resolved|Could not (resolve|transfer)|status code' "$RUNNER_TEMP/mvn-it.log" | cut -c1-240 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Repositorio Maven remoto (infraestructura, no la aplicación)::Fallo de descarga antes de ejecutar pruebas.%0A${remoto}"
+          elif [ "$codigo" -ne 0 ]; then
             # Primera causa raíz: excepciones del arnés y registros de initdb/pg_ctl/postgres del clúster efímero (si se conservaron).
             resumen=$( { grep -nE 'Falló el aprovisionamiento|Se requiere PostgreSQL|Caused by|FATAL|could not|Could not (transfer|resolve)|status code|Permission denied|Tests run:.*FAIL' "$RUNNER_TEMP/mvn-it.log" | head -16
               for f in "${TMPDIR:-/tmp}"/gamw-v8-it-*/*.log; do [ -f "$f" ] && { echo "== $f"; tail -n 12 "$f"; }; done; } | cut -c1-260 | head -70 | sed ':a;N;$!ba;s/\n/%0A/g')
