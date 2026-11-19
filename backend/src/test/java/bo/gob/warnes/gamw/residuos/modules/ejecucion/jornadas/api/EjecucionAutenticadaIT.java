@@ -61,21 +61,8 @@ class EjecucionAutenticadaIT extends IntegracionPostgresV8 {
                 usuario.equals(usuarioB)?personaB:personaA,"C1-"+usuario,hash);
     }
 
-    @AfterEach void limpiarSoloFixturesPropios() {
-        jdbc.update("DELETE FROM evento_ejecucion_jornada WHERE jornada_id IN (?,?)",jornadaA,jornadaB);
-        jdbc.update("DELETE FROM usuario WHERE id IN (?,?,?)",usuarioA,usuarioB,otraCuentaA);
-        jdbc.update("DELETE FROM asignacion_jornada WHERE jornada_id IN (?,?)",jornadaA,jornadaB);
-        jdbc.update("DELETE FROM jornada WHERE id IN (?,?)",jornadaA,jornadaB);
-        jdbc.update("DELETE FROM vinculo_persona_funcion WHERE vinculo_persona_empresa_id IN (?,?)",vpA,vpB);
-        jdbc.update("DELETE FROM vinculo_persona_empresa WHERE id IN (?,?)",vpA,vpB);
-        jdbc.update("DELETE FROM persona_natural WHERE id IN (?,?)",personaA,personaB);
-        jdbc.update("DELETE FROM vinculo_vehiculo_empresa WHERE id=?",vv);
-        jdbc.update("DELETE FROM vehiculo WHERE id=?",vehiculo);
-        jdbc.update("DELETE FROM periodo_servicio WHERE id=?",periodo);
-        jdbc.update("DELETE FROM empresa_operadora WHERE id=?",empresa);
-        jdbc.update("DELETE FROM ruta_version WHERE id=?",version);
-        jdbc.update("DELETE FROM ruta WHERE id=?",ruta);
-    }
+    // Sin limpieza posterior: desde V20 la evidencia INICIO/FIN no se borra (tampoco en pruebas). Los fixtures usan identificadores aleatorios
+    // en un clúster efímero propio de la JVM, y las demás pruebas verifican solo sus propios identificadores.
 
     private String token(UUID usuario) {
         // Los claims personales son deliberadamente falsos: el convertidor consulta Usuario persistido.

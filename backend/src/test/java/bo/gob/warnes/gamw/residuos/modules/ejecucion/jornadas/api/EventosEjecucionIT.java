@@ -52,19 +52,7 @@ class EventosEjecucionIT extends bo.gob.warnes.gamw.residuos.shared.config.Integ
         jdbc.update("INSERT INTO asignacion_jornada VALUES (?,?,?,?,?,NULL,NULL,now())",a1,j1,vv1,vp1,Timestamp.from(captura.minusSeconds(3600)));
         jdbc.update("INSERT INTO asignacion_jornada VALUES (?,?,?,?,?,NULL,NULL,now())",otraAsignacion,j2,vv2,vp2,Timestamp.from(captura.minusSeconds(3600)));
     }
-    @AfterEach void limpiar() {
-        jdbc.update("DELETE FROM evento_ejecucion_jornada WHERE jornada_id IN (SELECT id FROM jornada WHERE periodo_servicio_id=?)",periodo);
-        jdbc.update("DELETE FROM asignacion_jornada WHERE jornada_id IN (SELECT id FROM jornada WHERE periodo_servicio_id=?)",periodo);
-        jdbc.update("DELETE FROM jornada WHERE periodo_servicio_id=?",periodo);
-        jdbc.update("DELETE FROM vinculo_persona_funcion WHERE vinculo_persona_empresa_id IN (?,?)",vp1,vp2);
-        jdbc.update("DELETE FROM vinculo_persona_empresa WHERE id IN (?,?)",vp1,vp2);
-        jdbc.update("DELETE FROM vinculo_vehiculo_empresa WHERE id IN (?,?)",vv1,vv2);
-        jdbc.update("DELETE FROM persona_natural WHERE id IN (?,?)",p1,p2);
-        jdbc.update("DELETE FROM vehiculo WHERE id IN (?,?)",v1,v2);
-        jdbc.update("DELETE FROM periodo_servicio WHERE id=?",periodo);
-        jdbc.update("DELETE FROM empresa_operadora WHERE id=?",empresa);
-        jdbc.update("DELETE FROM ruta_version WHERE ruta_id=?",ruta); jdbc.update("DELETE FROM ruta WHERE id=?",ruta);
-    }
+    // Sin limpieza posterior: desde V20 la evidencia INICIO/FIN no se borra (tampoco en pruebas). Identificadores aleatorios en un clúster efímero.
     @Test void capturaYRecepcionSonDistintasYReintentoNoLasReescribe() throws Exception {
         var cliente = UUID.randomUUID(); var d = datos(cliente,a1,captura);
         var creado = enviar(post(inicio()),d,201);
@@ -166,7 +154,18 @@ class EventosEjecucionIT extends bo.gob.warnes.gamw.residuos.shared.config.Integ
         falla("UPDATE evento_ejecucion_jornada SET tipo_evento='FIN' WHERE id=?",id);
         falla("UPDATE evento_ejecucion_jornada SET capturado_en=capturado_en+interval '1 second' WHERE id=?",id);
         falla("UPDATE evento_ejecucion_jornada SET recibido_en=recibido_en+interval '1 second' WHERE id=?",id);
+        // H-03 / V20: la evidencia INICIO/FIN tampoco se borra ni se vacía (antes solo se protegía UPDATE).
+        falla("DELETE FROM evento_ejecucion_jornada WHERE id=?",id);
+        falla("DELETE FROM evento_ejecucion_jornada WHERE jornada_id=?",j1);
+        assertThatThrownBy(() -> jdbc.execute("TRUNCATE evento_ejecucion_jornada")).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.execute("TRUNCATE posicion_gps")).isInstanceOf(DataIntegrityViolationException.class);
+        // FIN posterior (append-only) e idempotencia del reintento siguen funcionando después de los intentos fallidos.
+        var fin=enviar(post(fin()),datos(UUID.randomUUID(),a1,captura.plusSeconds(60)),201);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM evento_ejecucion_jornada WHERE jornada_id=?",Integer.class,j1)).isEqualTo(2);
+        assertThat(lectura().get("fin")).isEqualTo(fin);
         assertThat(lectura().get("inicio")).isEqualTo(e);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM pg_trigger WHERE tgrelid='evento_ejecucion_jornada'::regclass AND NOT tgisinternal AND tgenabled='O'",Integer.class))
+            .as("UPDATE, DELETE y TRUNCATE protegidos").isEqualTo(3);
         assertThat(jdbc.queryForList("SELECT column_name FROM information_schema.columns WHERE table_name='evento_ejecucion_jornada' ORDER BY ordinal_position",String.class))
             .containsExactly("id","evento_cliente_id","jornada_id","asignacion_jornada_id","tipo_evento","capturado_en","recibido_en","usuario_id");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM pg_constraint WHERE contype='f' AND conrelid='evento_ejecucion_jornada'::regclass AND confdeltype <> 'a'",Integer.class)).isZero();
