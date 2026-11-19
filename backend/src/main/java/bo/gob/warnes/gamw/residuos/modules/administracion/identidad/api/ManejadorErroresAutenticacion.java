@@ -1,6 +1,7 @@
 package bo.gob.warnes.gamw.residuos.modules.administracion.identidad.api;
 
 import bo.gob.warnes.gamw.residuos.modules.administracion.identidad.aplicacion.CredencialesInvalidas;
+import bo.gob.warnes.gamw.residuos.modules.administracion.identidad.aplicacion.LimitadorIntentosAcceso;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,6 +12,13 @@ public class ManejadorErroresAutenticacion {
     @ExceptionHandler(CredencialesInvalidas.class)
     public ProblemDetail credencialesInvalidas(CredencialesInvalidas error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, error.getMessage());
+    }
+
+    @ExceptionHandler(LimitadorIntentosAcceso.DemasiadosIntentos.class)
+    public org.springframework.http.ResponseEntity<ProblemDetail> demasiadosIntentos(LimitadorIntentosAcceso.DemasiadosIntentos error) {
+        return org.springframework.http.ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(org.springframework.http.HttpHeaders.RETRY_AFTER, Long.toString(error.reintentarEnSegundos()))
+                .body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, error.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

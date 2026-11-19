@@ -1,6 +1,9 @@
 package bo.gob.warnes.gamw.residuos.modules.administracion.identidad.api;
 
+import bo.gob.warnes.gamw.residuos.modules.administracion.identidad.aplicacion.CredencialesInvalidas;
+import bo.gob.warnes.gamw.residuos.modules.administracion.identidad.aplicacion.LimitadorIntentosAcceso;
 import bo.gob.warnes.gamw.residuos.modules.administracion.identidad.aplicacion.ServicioAutenticacion;
+import jakarta.servlet.http.HttpServletRequest;
 import bo.gob.warnes.gamw.residuos.shared.security.UsuarioAutenticado;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import jakarta.validation.Valid;
@@ -17,15 +20,26 @@ import org.springframework.web.bind.annotation.*;
 @Profile("!desarrollo-local & !smoke")
 public class AutenticacionController {
     private final ServicioAutenticacion autenticacion;
+    private final LimitadorIntentosAcceso limitador;
 
-    public AutenticacionController(ServicioAutenticacion autenticacion) {
+    public AutenticacionController(ServicioAutenticacion autenticacion, LimitadorIntentosAcceso limitador) {
         this.autenticacion = autenticacion;
+        this.limitador = limitador;
     }
 
     @PostMapping("/login")
-    public RespuestaInicioSesion login(@Valid @RequestBody SolicitudInicioSesion solicitud) {
-        ServicioAutenticacion.Sesion sesion = autenticacion.autenticar(solicitud.nombreUsuario(),
-                solicitud.contrasena());
+    public RespuestaInicioSesion login(@Valid @RequestBody SolicitudInicioSesion solicitud, HttpServletRequest peticion) {
+        // Origen TCP inmediato: no se confía en cabeceras reenviadas sin un proxy configurado (decisión de despliegue).
+        String origen = peticion.getRemoteAddr();
+        limitador.verificar(origen, solicitud.nombreUsuario());
+        ServicioAutenticacion.Sesion sesion;
+        try {
+            sesion = autenticacion.autenticar(solicitud.nombreUsuario(), solicitud.contrasena());
+        } catch (CredencialesInvalidas error) {
+            limitador.registrarFallo(origen, solicitud.nombreUsuario());
+            throw error;
+        }
+        limitador.registrarExito(origen, solicitud.nombreUsuario());
         return new RespuestaInicioSesion(sesion.tokenAcceso(), sesion.expiraEn(), sesion.usuarioId(),
                 sesion.personaNaturalId(), sesion.nombreUsuario());
     }

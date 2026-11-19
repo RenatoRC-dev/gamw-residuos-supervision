@@ -85,6 +85,20 @@ class ServicioAutenticacionTests {
     }
 
     @Test
+    void cuentaInexistenteOInactivaTambienEjecutaBCrypt() {
+        // H-05: sin atajo temporal que revele la existencia de la cuenta.
+        BCryptPasswordEncoder espia = spy(new BCryptPasswordEncoder());
+        ServicioAutenticacion conEspia = new ServicioAutenticacion(usuarios, espia, emisor);
+        when(usuarios.porNombreUsuario("no.existe")).thenReturn(Optional.empty());
+        when(usuarios.porNombreUsuario(NOMBRE_EXACTO)).thenReturn(Optional.of(usuario(false)));
+        clearInvocations(espia);
+        assertThatThrownBy(() -> conEspia.autenticar("no.existe", CLAVE_CORRECTA)).isInstanceOf(CredencialesInvalidas.class);
+        assertThatThrownBy(() -> conEspia.autenticar(NOMBRE_EXACTO, CLAVE_CORRECTA)).isInstanceOf(CredencialesInvalidas.class);
+        verify(espia, times(2)).matches(eq(CLAVE_CORRECTA), anyString());
+        verifyNoInteractions(emisor);
+    }
+
+    @Test
     void rechazaUsuarioInactivoConElMismoError() {
         when(usuarios.porNombreUsuario(NOMBRE_EXACTO)).thenReturn(Optional.of(usuario(false)));
 

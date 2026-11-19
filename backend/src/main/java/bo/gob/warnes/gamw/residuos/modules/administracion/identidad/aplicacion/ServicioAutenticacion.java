@@ -25,15 +25,20 @@ public class ServicioAutenticacion {
         this.usuarios = usuarios;
         this.codificadorContrasenas = codificadorContrasenas;
         this.emisor = emisor;
+        // H-05: hash ficticio para igualar el costo de BCrypt cuando la cuenta no existe o está inactiva (sin enumeración por tiempo).
+        this.hashFicticio = codificadorContrasenas.encode(UUID.randomUUID().toString());
     }
+    private final String hashFicticio;
 
     public Sesion autenticar(String nombreUsuario, String contrasena) {
         if (nombreUsuario == null || nombreUsuario.isBlank() || contrasena == null || contrasena.isBlank()) {
             throw new CredencialesInvalidas();
         }
-        Usuario usuario = usuarios.porNombreUsuario(nombreUsuario)
-                .filter(Usuario::activo)
-                .orElseThrow(CredencialesInvalidas::new);
+        Usuario usuario = usuarios.porNombreUsuario(nombreUsuario).filter(Usuario::activo).orElse(null);
+        if (usuario == null) {
+            codificadorContrasenas.matches(contrasena, hashFicticio);
+            throw new CredencialesInvalidas();
+        }
         if (!codificadorContrasenas.matches(contrasena, usuario.contrasenaHash())) {
             throw new CredencialesInvalidas();
         }
