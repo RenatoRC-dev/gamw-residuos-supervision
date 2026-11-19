@@ -94,6 +94,9 @@ class FlujoMunicipalNavegadorIT extends IntegracionPostgresV8 {
         String inspector="flujo-insp-"+sufijo;
         UUID uInsp=usuario(persona("Inspector sintético"),inspector);
         conceder(uInsp,"INSPECCION_REGISTRAR","FISCALIZACION_CONSULTAR","JORNADAS_CONSULTAR"); // sin EMITIR: la inspección no es un resultado
+        String registradorReclamo="flujo-rec-"+sufijo;
+        UUID uRec=usuario(persona("Registrador de reclamos"),registradorReclamo);
+        conceder(uRec,"RECLAMO_CONSULTAR","RECLAMO_REGISTRAR","JORNADAS_CONSULTAR"); // sin RECLAMO_REVISAR: no valida
         conceder(uFiscal,"TRAYECTORIA_JORNADA_CONSULTAR","FISCALIZACION_CONSULTAR","JORNADAS_CONSULTAR"); // sin CORRECTIVA_/RECLAMO_/EMITIR
         conceder(uFc,"CORRECTIVA_CONSULTAR","CORRECTIVA_SOLICITAR","CORRECTIVA_VERIFICAR");
         conceder(uSolo,"CORRECTIVA_CONSULTAR","CORRECTIVA_SOLICITAR"); // puede solicitar, NO verificar
@@ -259,6 +262,22 @@ class FlujoMunicipalNavegadorIT extends IntegracionPostgresV8 {
             var expedienteInspeccion=json.readTree(api("GET","/api/fiscalizacion/jornadas/"+jornada,tInsp,null).body());
             assertThat(expedienteInspeccion.get("inspecciones").size()).isEqualTo(1);
             assertThat(expedienteInspeccion.get("fiscalizacion").isNull()).as("la inspección no crea resultado de fiscalización").isTrue();
+
+            // 7) CU-26 (A3): reclamo institucional por la UI, sin y con jornada; reintento idempotente; sin validación ni imputación
+            String marcaReclamo="MARCA-RECLAMO-"+sufijo;
+            int accionesAntes=contar("SELECT count(*) FROM accion_correctiva");
+            env.put("GAMW_WEB_TEST_REGISTRADOR_RECLAMO",registradorReclamo);
+            env.put("GAMW_WEB_TEST_MARCA_RECLAMO",marcaReclamo);
+            nodo(directorio,"e2e/flujo-reclamo.test.mjs",env,Map.of());
+            assertThat(contar("SELECT count(*) FROM reclamo_institucional WHERE descripcion LIKE ?","%"+marcaReclamo+"%")).as("dos reclamos: ni duplicados por el reintento ni registros de los intentos inválidos").isEqualTo(2);
+            assertThat(contar("SELECT count(*) FROM reclamo_institucional WHERE descripcion LIKE ? AND jornada_id IS NULL AND usuario_id=?","%"+marcaReclamo+" A",uRec)).as("reclamo sin jornada identificada").isEqualTo(1);
+            assertThat(contar("SELECT count(*) FROM reclamo_institucional WHERE descripcion LIKE ? AND jornada_id=? AND usuario_id=? AND btrim(referencias_origen)<>''","%"+marcaReclamo+" B",jornada,uRec)).as("reclamo con jornada y origen documentado").isEqualTo(1);
+            assertThat(contar("SELECT count(*) FROM reclamo_institucional WHERE descripcion LIKE ? AND registrado_en<=recibido_en","%"+marcaReclamo+"%")).as("registro posterior a la recepción declarada").isZero();
+            assertThat(contar("SELECT count(*) FROM revision_reclamo r JOIN reclamo_institucional c ON c.id=r.reclamo_id WHERE c.descripcion LIKE ?","%"+marcaReclamo+"%")).as("registrar no valida ni revisa").isZero();
+            assertThat(contar("SELECT count(*) FROM relacion_reclamo r JOIN reclamo_institucional c ON c.id=r.reclamo_id WHERE c.descripcion LIKE ?","%"+marcaReclamo+"%")).isZero();
+            assertThat(contar("SELECT count(*) FROM accion_correctiva")).as("ninguna acción correctiva automática").isEqualTo(accionesAntes);
+            assertThat(contar("SELECT count(*) FROM fiscalizacion WHERE jornada_id=?",jornada)).isZero();
+            assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> jdbc.update("UPDATE reclamo_institucional SET descripcion='alterada' WHERE descripcion LIKE ?","%"+marcaReclamo+"%"))).isNotNull();
         } finally {
             servidor.descendants().forEach(ProcessHandle::destroy); servidor.destroy();
         }

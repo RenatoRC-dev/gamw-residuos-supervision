@@ -1,6 +1,6 @@
 # Matriz de cobertura de los 31 CU — auditoría funcional (baseline `6db0d1e`; actualizada en `c1f0ce3` [CU-22] y en el corte CU-20)
 
-> Conteo vigente tras los cortes CU-22 y CU-20: **IMPLEMENTED 3 · PARTIAL 24 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1**. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
+> Conteo vigente tras los cortes CU-22, CU-20 y CU-26 (CU-26 permanece PARTIAL: solo el registro textual está verificado, §12): **IMPLEMENTED 3 · PARTIAL 24 · INSTITUTIONALLY BLOCKED 3 · NOT IMPLEMENTED 1**. CU-20 permanece PARTIAL: solo está verificado el subconjunto *sin fotografías* (ver §11); no es aceptación del CU completo.
 
 **Naturaleza:** auditoría de solo lectura (no se implementó nada). Evidencia = rutas de archivos del repositorio y resultados ya ejecutados en esta campaña.
 **Distinción obligatoria:** *verificación técnica automatizada* ≠ *aceptación institucional*. Ningún CU está aceptado por el GAMW.
@@ -28,7 +28,7 @@ Total 31. **IMPLEMENTED no implica aceptación** (01 y 29 siguen sujetos a D1/ac
 ## 3. Inventario de pruebas realmente ejecutadas (esta campaña, local/CI)
 
 Backend 199 (surefire, 1 omitida Android) + IT aislados; navegador real: `FlujoMunicipalNavegadorIT` (flujo municipal + correctivo), `AutenticacionWebIT`, `RegistroPlanificacionWebIT`; web vitest 64; Flutter CI (analyze + test); emulador Android (cadena offline, GPS **sintético** en el almacén local). Informe: `docs/qa/QA_TECNICA_GAMW_20261118.md`.
-**Sin ninguna prueba automatizada encontrada** (búsqueda en `backend/src/test`, `apps/web`, `apps/mobile/test`): `ReclamosController`, `PuntosCriticosController`, `RevisionGpsController`/`RevisarEvidenciaGps`, `ReferenciasEspacialesController`, `MonitoreoController` (solo comprobación de cierre en `ConsultaSeguimientoGpsIT.java:109`), `AdministracionIdentidadController`/`AdministrarIdentidad`, `PanelIncidencias` (Flutter) y `PaginaReprogramacionEmpresa` (web). *(Actualizado: el alta de inspección sin fotografías, CU-20, y `PaginaCorrectivasEmpresa`, CU-22, ya tienen pruebas; ver §10 y §11.)*
+**Sin ninguna prueba automatizada encontrada** (búsqueda en `backend/src/test`, `apps/web`, `apps/mobile/test`): `PuntosCriticosController`, revisiones/relaciones/anexos de `ReclamosController` (CU-27), `RevisionGpsController`/`RevisarEvidenciaGps`, `ReferenciasEspacialesController`, `MonitoreoController` (solo comprobación de cierre en `ConsultaSeguimientoGpsIT.java:109`), `AdministracionIdentidadController`/`AdministrarIdentidad`, `PanelIncidencias` (Flutter) y `PaginaReprogramacionEmpresa` (web). *(Actualizado: el alta de inspección sin fotografías, CU-20, y `PaginaCorrectivasEmpresa`, CU-22, ya tienen pruebas; ver §10 y §11.)*
 
 ## 4. Matriz CU × RF × Actor × componentes × pruebas × estado
 
@@ -61,7 +61,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 23 Verificar atención | RF-19 | A3 | `GestionarActuaciones.verificar` | `PaginaCorrectivas.tsx` | — | E2E fase 2 (UI) + REST (409/403) con categoría **sintética** | **PARTIAL / bloqueado en producción**: catálogo oficial inexistente |
 | 24 Reprogramar | RF-20 | **A4** | `ReprogramarJornadasOperador`, V16 | `PaginaReprogramacionEmpresa.tsx` | — | ITJ REST `AutorizacionOperativaV19IT`; ITD `JornadasIT`; E2E `RegistroPlanificacionWebIT` **dev-local por vía municipal** (cerrada en producción: 403) | **PARTIAL**: UI de producción (A4) sin pruebas; ejecutadas/fiscalizadas bloqueadas |
 | 25 Reporte ciudadano | RF-21 (GAP-01) | A6 externo | — | — | — | — | **INSTITUTIONALLY BLOCKED**: formulario público, privacidad y controles sin aprobar; RF por ampliar |
-| 26 Registrar reclamo | RF-21 | A3 | `ReclamosController`, V18 | `PaginaReclamosPuntos.tsx` | — | **—** (solo conteo en `HistorialServicioIT`) | **PARTIAL**: sin pruebas; privacidad/anexos apagados |
+| 26 Registrar reclamo | RF-21 | A3 | `ReclamosController.registrar`, `GestionarReclamos`, V18 | `PaginaReclamosPuntos.tsx` (formulario «Registrar reclamo recibido») | — | ITJ `ReclamoInstitucionalIT` (4); E2E `flujo-reclamo.test.mjs` (UI, JWT) vía `FlujoMunicipalNavegadorIT` | **PARTIAL** (registro textual verificado, §12): anexos, privacidad (datos personales), catálogo de canales y duplicados entre canales sin definir/bloqueados; CU-27 y CU-25 fuera de alcance |
 | 27 Validar/gestionar reclamos | RF-21 | A3 | `ReclamosController` (revisiones/relaciones) | ídem | — | **—** | **PARTIAL**: sin pruebas; catálogo de valoración vacío (D1/PENDING) |
 | 28 Punto crítico | RF-22 | A3 | `PuntosCriticosController`, V18 | `PaginaReclamosPuntos.tsx` | — | **—** | **PARTIAL**: sin pruebas; criterios PENDING-10 (apagado por defecto) |
 | 29 Historial | RF-23 | A1/A2/A3 | `modules/historial/*` | `PaginaHistorialServicio.tsx` | — | ITJ `HistorialServicioIT` (5); E2E `flujo-municipal`; VT (2) | **IMPLEMENTED** (técnico, JWT). Pendiente: D1, snapshots nominales, ejecución sin permiso aprobado |
@@ -148,6 +148,23 @@ Verificado (local): `InspeccionCampoIT` 4/4 (JWT real, PostgreSQL/PostGIS aislad
 | FA-02 vínculo con incidencia/reclamo · FA-03 anexo posterior · retención/privacidad | **No implementado / PENDING** | sin regla aprobada (PENDING-09); no se implementó |
 
 No se detectaron defectos de producción. Se mantiene sin definir si una fecha de inspección futura debe rechazarse (no hay regla aprobada; no se inventó). Acuerdo GAMW: **PENDING**.
+
+## 12. Actualización — corte CU-26 (reclamo institucional) · RF-21
+
+Verificado (local): `ReclamoInstitucionalIT` 4/4 (JWT real, PostgreSQL/PostGIS aislado) + `FlujoMunicipalNavegadorIT` 1/1 con `apps/web/e2e/flujo-reclamo.test.mjs` (Chromium real, REST real; jornada y concesiones sembradas por SQL, no por la UI). Sin defectos de producción detectados.
+
+| Criterio CU-26 / regla | Estado | Prueba |
+|---|---|---|
+| Canal declarado, recepción original, descripción, autor y registro conservados | **Verificado** | autor desde la sesión; `recibido_en` exacto; `registrado_en` del servidor posterior; ubicación opcional [lon,lat] SRID 4326; inmutable (UPDATE/DELETE rechazados) |
+| Reclamo **sin** jornada identificada | **Verificado** | `jornadaId` nulo; no aparece en el conteo CU-29 de ninguna jornada |
+| Con jornada: referencia existente + origen documentado | **Verificado** | sin referencias de origen → 400; jornada inexistente → 400 (API y UI: mensaje, sin registro); válido → 200 y cuenta 1 en CU-29 (con `RECLAMO_CONSULTAR`) |
+| Campos obligatorios, fechas y coordenadas inválidas | **Verificado** | 400: falta solicitud/canal/fecha/descripción, canal vacío, fecha futura, nanosegundos, latitud/longitud fuera de rango, una sola coordenada, autor ajeno, campo de validación; UI: formulario vacío sin petición |
+| Idempotencia, conflicto, inmutabilidad | **Verificado** | réplica idéntica = mismo reclamo y `registradoEn`; otro contenido u otro actor = 409; UI: envío fallido + reintento = misma `solicitudId`, un solo registro |
+| Autorización | **Verificado** | solo consulta o sin permisos → 403; sin identidad 401/403; opciones: consultor no puede registrar ni revisar |
+| Registrar **no** valida, no imputa incumplimiento ni crea acción correctiva/dictamen | **Verificado** | `validadoMunicipalmente=false`; 0 revisiones/relaciones; `accion_correctiva` sin variación; `fiscalizacion`=0; la UI no muestra validación |
+| Anexos / datos personales / catálogo oficial de canales / duplicados entre canales / SLA | **No implementado / PENDING** | anexos deshabilitados sin política (`anexosHabilitados=false`); canal es texto declarado, no catálogo; sin portal ciudadano (CU-25) ni validación (CU-27) |
+
+Acuerdo GAMW: **PENDING** (solo verificación técnica del registro textual).
 
 ## 9. Distinción final
 
