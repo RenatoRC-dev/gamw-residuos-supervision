@@ -15,6 +15,9 @@ on:
       - .github/scripts/android_emulador_qa.sh
       - apps/mobile/qa_emulador/**
       - apps/mobile/analysis_options.yaml
+      # El código nativo Kotlin (permisos y servicio GPS) solo se compila aquí: un cambio en él debe ejecutar esta QA.
+      - apps/mobile/android/app/src/main/**
+      - apps/mobile/lib/modules/ejecucion/gps/**
       - backend/src/test/java/bo/gob/warnes/gamw/residuos/modules/ejecucion/jornadas/api/AndroidEmuladorQaIT.java
 
 permissions:

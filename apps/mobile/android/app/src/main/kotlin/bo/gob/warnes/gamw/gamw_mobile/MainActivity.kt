@@ -18,11 +18,17 @@ class MainActivity : FlutterActivity() {
                     if(pendiente != null) { result.error("OCUPADO","Solicitud de permisos en curso",null); return@setMethodCallHandler }
                     val permisos=mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION)
                     if(Build.VERSION.SDK_INT>=33) permisos.add(Manifest.permission.POST_NOTIFICATIONS)
-                    if(permisosConcedidos()) result.success(true)
+                    // H-02/H-04: se devuelve el estado de cada permiso; Flutter decide con evaluarPermisosGps (probado en Dart).
+                    if(ubicacionPrecisa() && notificaciones()) result.success(estadoPermisos())
                     else { pendiente=result; requestPermissions(permisos.toTypedArray(),410) }
                 }
                 "iniciar" -> {
-                    if(!permisosConcedidos()) { ServicioCapturaGps.estado="Permiso denegado"; result.success("Permiso denegado"); return@setMethodCallHandler }
+                    // GPS_PROVIDER exige ubicación PRECISA. Las notificaciones NO condicionan el servicio en primer plano (H-02):
+                    // su notificación obligatoria se crea igual; si están denegadas puede no mostrarse y se informa en "estado".
+                    if(!ubicacionPrecisa()) {
+                        ServicioCapturaGps.estado=if(ubicacionAproximada()) SOLO_APROXIMADA else "Permiso denegado"
+                        result.success(ServicioCapturaGps.estado); return@setMethodCallHandler
+                    }
                     val args=call.arguments as? Map<*,*> ?: emptyMap<Any,Any>()
                     val intent=Intent(this,ServicioCapturaGps::class.java)
                     val solicitud=java.util.UUID.randomUUID().toString()
@@ -41,21 +47,30 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     } catch(e:RuntimeException) { result.error("ALMACENAMIENTO","No se pudo confirmar detención GPS",null) }
                 }
-                "estado" -> result.success(ServicioCapturaGps.estado)
+                "estado" -> {
+                    val activo=ServicioCapturaGps.estado=="Capturando GPS" || ServicioCapturaGps.estado=="Esperando ubicación"
+                    result.success(if(activo && !notificaciones()) "${ServicioCapturaGps.estado} · $SIN_NOTIFICACIONES" else ServicioCapturaGps.estado)
+                }
                 else -> result.notImplemented()
             }
         }
     }
-    private fun permisosConcedidos(): Boolean =
-        (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)==PackageManager.PERMISSION_GRANTED) &&
-        (Build.VERSION.SDK_INT<33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)==PackageManager.PERMISSION_GRANTED)
+    companion object {
+        const val SOLO_APROXIMADA="Ubicación precisa requerida: solo se concedió ubicación aproximada; no se captura GPS."
+        const val SIN_NOTIFICACIONES="Notificaciones denegadas: la captura continúa, pero su aviso puede no mostrarse."
+    }
+    private fun concedido(permiso:String)=checkSelfPermission(permiso)==PackageManager.PERMISSION_GRANTED
+    private fun ubicacionPrecisa()=concedido(Manifest.permission.ACCESS_FINE_LOCATION)
+    private fun ubicacionAproximada()=concedido(Manifest.permission.ACCESS_COARSE_LOCATION)
+    private fun notificaciones()=Build.VERSION.SDK_INT<33 || concedido(Manifest.permission.POST_NOTIFICATIONS)
+    private fun estadoPermisos():Map<String,Boolean> =
+        mapOf("fina" to ubicacionPrecisa(),"aproximada" to ubicacionAproximada(),"notificaciones" to notificaciones())
 
     override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray) {
         super.onRequestPermissionsResult(requestCode,permissions,grantResults)
         if(requestCode==410) {
-            if(!permisosConcedidos()) ServicioCapturaGps.estado="Permiso denegado"
-            pendiente?.success(permisosConcedidos()); pendiente=null
+            if(!ubicacionPrecisa()) ServicioCapturaGps.estado=if(ubicacionAproximada()) SOLO_APROXIMADA else "Permiso denegado"
+            pendiente?.success(estadoPermisos()); pendiente=null
         }
     }
 }
