@@ -71,7 +71,7 @@ jobs:
           grep -viE 'authorization|bearer|eyJ' "$RUNNER_TEMP/mvn-e2e.log" > "$RUNNER_TEMP/mvn-e2e-sanitizado.log"
           tail -n 120 "$RUNNER_TEMP/mvn-e2e-sanitizado.log"
           if [ "$codigo" -ne 0 ]; then
-            resumen=$( { grep -nE 'Tests run:.*FAIL|not ok|DIAG|waiting for|strict mode|Timeout|Falló el aprovisionamiento|Caused by|FATAL' "$RUNNER_TEMP/mvn-e2e-sanitizado.log" | head -20; } | cut -c1-260 | sed ':a;N;$!ba;s/\n/%0A/g')
+            resumen=$( { grep -nE 'Tests run:.*FAIL|not ok|DIAG|error:|expected|actual|\.mjs:[0-9]+|waiting for|strict mode|Timeout|Falló el aprovisionamiento|Caused by|FATAL' "$RUNNER_TEMP/mvn-e2e-sanitizado.log" | head -40; } | cut -c1-260 | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=Fallos de E2E de navegador::${resumen}"
           fi
           cp "$RUNNER_TEMP/mvn-e2e-sanitizado.log" "$GITHUB_WORKSPACE/backend/target/mvn-e2e-sanitizado.log" || true

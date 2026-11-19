@@ -139,6 +139,12 @@ test('CU-11/12: A4 programa, asigna y reasigna en el navegador (idempotente, ais
     assert.deepEqual(errores, [], 'Sin errores de página.');
     assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
     assert.equal((await contexto.cookies()).length, 0);
+  } catch (fallo) {
+    // Diagnóstico (no oculta el fallo): primera línea del error, URL y texto visible, para entender fallos que solo ocurren en CI.
+    console.log(`DIAG fallo: ${String(fallo?.message ?? fallo).split('\n')[0].slice(0, 300)}`);
+    console.log(`DIAG url: ${page.url()}`);
+    console.log(`DIAG texto: ${(await page.locator('main').innerText().catch(() => 'sin main')).replace(/\s+/g, ' ').slice(0, 700)}`);
+    throw fallo;
   } finally {
     await browser.close();
   }
