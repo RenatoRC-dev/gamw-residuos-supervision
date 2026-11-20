@@ -458,7 +458,9 @@ CI: `ea3c997` Browser E2E (run 44657906186) **PASS**, incluye `ReportesServicioN
 
 ## 27. F2 CU-10 puntos de control y geocercas · RF-06
 
-Verificado (local): `ReferenciasEspacialesIT` 6/6 y variante con rol no propietario 6/6 (JWT, PostgreSQL/PostGIS aislado); `ReferenciasEspacialesNavegadorIT` 1/1: Chromium real con MapLibre + Terra Draw sobre WebGL (SwiftShader), estilo local sin teselas externas. El punto y la geocerca se **dibujan con el ratón sobre el lienzo**, se guardan, se recuperan de PostGIS con la misma geometría y su capa persistida se verifica **leyendo los píxeles del lienzo** (color del círculo y del relleno). Por la base compartida, la respuesta real del listado se restringe a la RutaVersion propia de la prueba. Web `tsc`, vitest 75/75, build. Coordenadas, radios y rutas sintéticos; ninguna ubicación ni radio institucional.
+Verificado (local): `ReferenciasEspacialesIT` 6/6 y variante con rol no propietario 6/6 (JWT, PostgreSQL/PostGIS aislado); `ReferenciasEspacialesNavegadorIT` 1/1: Chromium real con MapLibre + Terra Draw sobre WebGL (SwiftShader), estilo local sin teselas externas. El punto y la geocerca se **dibujan con el ratón sobre el lienzo**, se guardan, se recuperan de PostGIS con la misma geometría y su capa persistida se verifica **leyendo los píxeles del lienzo** (color del círculo y del relleno). Por la base compartida, la respuesta real del listado se restringe a la RutaVersion propia de la prueba. Web `tsc`, vitest 75/75, build. Coordenadas, radios y rutas sintéticos; ninguna ubicación ni radio institucional. Regresión local: integración 183/183 (32 clases, incluida `CoincidenciasEspacialesNavegadorIT` de CU-18), unitarias 99/99.
+
+CI `aaa9706`: Browser E2E (run 44667135176) **PASS**, incluye la verificación del lienzo WebGL en CI; Engineering foundation (44667135151) **PASS**.
 
 **Defectos corregidos (probados):**
 1. GeoJSON malformado (p. ej. `coordinates` no es un arreglo): PostGIS responde `XX000` y la excepción llegaba a `/error` (cerrado por la seguridad), lo que daba un 403 engañoso. Ahora responde **400** y no persiste nada.
