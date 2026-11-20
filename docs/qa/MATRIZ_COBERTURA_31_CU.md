@@ -439,7 +439,9 @@ Conteos sin cambio: CU-13 y CU-14 siguen **PARTIAL**.
 
 Vertical de solo lectura `GET /api/reportes-servicio/resumen?desde&hasta[&empresaId][&periodoId]` y página `/reportes-servicio`. Alcance: el mismo de CU-29 (fecha de servicio = inicio programado en America/La_Paz, ambos extremos incluidos). Autorización: `JORNADAS_CONSULTAR` para el reporte (igual que CU-29) y, para cada fuente adicional, el permiso propio de su módulo (`TRAYECTORIA_JORNADA_CONSULTAR`, `CORRECTIVA_CONSULTAR`, `FISCALIZACION_CONSULTAR`, `RECLAMO_CONSULTAR`); sin permisos nuevos. Recuentos: jornadas, sustituidas, con asignación, posiciones GPS, jornadas con GPS, incidencias, inspecciones, reclamos vinculados y reclamos recibidos (este último solo sin filtro de empresa/periodo). Eventos INICIO/FIN: «no consultado» (sin permiso municipal aprobado, igual que CU-29).
 
-Verificado (local): `ReportesServicioIT` 6/6 y variante con rol no propietario 6/6; `ReportesServicioNavegadorIT` 1/1 (Chromium real); web `tsc`, vitest 75/75, build.
+Verificado (local): `ReportesServicioIT` 6/6 y variante con rol no propietario 6/6; `ReportesServicioNavegadorIT` 1/1 (Chromium real); web `tsc`, vitest 75/75, build; integración `verify` 170/170 (29 clases), unitarias 99/99.
+
+CI: `ea3c997` Browser E2E (run 44657906186) **PASS**, incluye `ReportesServicioNavegadorIT`. `backend-integration` falló dos veces antes de ejecutar pruebas: Maven Central respondió **429 Too Many Requests** (44657906261) y luego, con una caché propia vacía, también rechazó el POM padre (44659120496). Corrección de CI: caché Maven propia del job, con respaldo en la caché de setup-java y esperas de reintento mayores; las pruebas no se omiten. `637203a` Engineering foundation (44660223744) **PASS** (`verify` + `backend-integration`, con `ReportesServicioIT` y su variante no propietaria).
 
 | Criterio | Estado | Evidencia |
 |---|---|---|
