@@ -25,8 +25,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-          cache: maven
-          cache-dependency-path: backend/pom.xml
+      # Run 44657906261: Maven Central respondió 429 (Too Many Requests) al descargar maven-failsafe-plugin. Este job compartía la clave
+      # de caché de setup-java con `verify`, que no usa failsafe y guardaba la caché primero; failsafe se descargaba en cada ejecución.
+      # Caché propia del job: tras una ejecución verde, failsafe y sus dependencias quedan en caché y no se piden de nuevo a Central.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: m2-integracion-${{ runner.os }}-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: m2-integracion-${{ runner.os }}-
       - uses: actions/cache@v4
         with:
           path: ~/.m2/wrapper
@@ -69,7 +75,7 @@ jobs:
                && ! grep -qE 'Tests run: [0-9]+' "$RUNNER_TEMP/mvn-it.log"; then
               echo "::warning title=Descarga Maven remota (intento $intento)::Fallo de descarga antes de ejecutar pruebas; se reintenta."
               grep -m 4 -E "$descarga" "$RUNNER_TEMP/mvn-it.log" | cut -c1-400
-              sleep $((intento * 30)); continue
+              sleep $((intento * 90)); continue   # 429 de Central: ventana de espera mayor (90 s, 180 s)
             fi
             break
           done
