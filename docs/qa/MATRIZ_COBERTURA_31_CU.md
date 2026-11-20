@@ -177,6 +177,8 @@ Acuerdo GAMW: **PENDING** (solo verificación técnica del registro textual).
 
 Local: `ReclamoInstitucionalIT` 6/6 (antes 4) y no propietario 6/6; regresión `RevisionReclamosIT` 6/6, `PuntosCriticosIT` 6/6, `HistorialServicioIT` 5/5, `FlujoMunicipalNavegadorIT` 1/1 (registro por la UI). `ReclamoInstitucionalIT` se añadió a `-Dit.test` de Engineering foundation (antes solo corría en CI su variante no propietaria). Sin cambios en V1–V21, canales, privacidad ni duplicados entre canales. CU-26 sigue **PARTIAL**.
 
+CI `cb90db2`: Engineering foundation (run 44698499595) **PASS**; Browser E2E (44698499557) **PASS**.
+
 ## 13. Actualización — corte CU-11/CU-12 (planificación por el operador A4) · RF-07
 
 Verificado (local): `PlanificacionOperadorNavegadorIT` 1/1 (Chromium real + REST real + PostgreSQL/PostGIS aislado), con `apps/web/e2e/flujo-planificacion.test.mjs`; regresión `JornadasIT` 11, `AutorizacionOperativaV19IT` 6, `CadenaOperativaFiscalizacionIT` 2, `HistorialServicioIT` 5. Empresas, periodos, ruta, vínculos y concesiones sembrados por SQL (no por la UI). Sin defectos de producción detectados.
