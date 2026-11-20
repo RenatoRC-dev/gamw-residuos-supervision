@@ -19,11 +19,11 @@ Fuentes: `docs/context/GAMW_BASELINE_FUNCIONAL_CU01_CU31_v1_0.md` (actores), `do
 | Estado | Cantidad | CU |
 |---|---|---|
 | IMPLEMENTED | **10** | 01, 04, 05, 06, 07, 11, 12, 22, 24, 29 (22 desde §10; 11/12 desde §13; 24 desde §14; 04/05 desde §23; 06/07 desde §24) |
-| PARTIAL | **17** | 02, 03, 09, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 26, 27, 28 |
+| PARTIAL | **18** | 02, 03, 09, 10, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 26, 27, 28, 30 (30 desde §26) |
 | INSTITUTIONALLY BLOCKED | **3** | 08, 25, 31 (31: código listo, acceso denegado por D1) |
-| NOT IMPLEMENTED | **1** | 30 |
+| NOT IMPLEMENTED | **0** | — |
 
-Total 31 (verificado fila por fila contra la tabla de la sección siguiente, corte F1 §24). **IMPLEMENTED no implica aceptación**: es verificación técnica automatizada; ningún CU está aceptado por el GAMW. Conteos históricos de esta tabla: 8 / 19 / 3 / 1 (tras §23), 6 / 21 / 3 / 1 (tras §21) y 3 / 24 / 3 / 1 (antes de CU-11/12 y CU-24).
+Total 31 (verificado fila por fila contra la tabla de la sección siguiente, corte §26). **IMPLEMENTED no implica aceptación**: es verificación técnica automatizada; ningún CU está aceptado por el GAMW. Conteos históricos de esta tabla: 10 / 17 / 3 / 1 (tras §24/§25), 8 / 19 / 3 / 1 (tras §23), 6 / 21 / 3 / 1 (tras §21) y 3 / 24 / 3 / 1 (antes de CU-11/12 y CU-24).
 
 ## 3. Inventario de pruebas realmente ejecutadas (esta campaña, local/CI)
 
@@ -65,7 +65,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 27 Validar/gestionar reclamos | RF-21 | A3 | `ReclamosController` (revisiones/relaciones) | ídem | — | **—** | **PARTIAL**: sin pruebas; catálogo de valoración vacío (D1/PENDING) |
 | 28 Punto crítico | RF-22 | A3 | `PuntosCriticosController`, V18 | `PaginaReclamosPuntos.tsx` | — | **—** | **PARTIAL**: sin pruebas; criterios PENDING-10 (apagado por defecto) |
 | 29 Historial | RF-23 | A1/A2/A3 | `modules/historial/*` | `PaginaHistorialServicio.tsx` | — | ITJ `HistorialServicioIT` (5); E2E `flujo-municipal`; VT (2) | **IMPLEMENTED** (técnico, JWT). Pendiente: D1, snapshots nominales, ejecución sin permiso aprobado |
-| 30 Reportes e indicadores | RF-24 | usuario autorizado | — | — | — | — | **NOT IMPLEMENTED**: fórmulas/entregables sin definir; solo cabría conteo descriptivo sin inferir cumplimiento (propuesta, no hecho) |
+| 30 Reportes e indicadores | RF-24 | usuario autorizado | `historial/api/ReportesServicioController`, `ConsultarReportesServicio`, `RepositorioReportesServicio` | `PaginaReportesServicio.tsx` (`/reportes-servicio`) | — | ITJ `ReportesServicioIT` 6 (+ no propietaria 6); E2E `flujo-reportes.test.mjs` vía `ReportesServicioNavegadorIT`; VT `reportesServicio.test.ts` (§26) | **PARTIAL** (§26): recuentos descriptivos verificados técnicamente (municipal, `JORNADAS_CONSULTAR` + permiso propio por fuente). Pendiente: reportes/fórmulas/unidades oficiales (PENDING-11), formato de exportación, A2/A4 (D1) |
 | 31 Bitácora | RF-25 | A1 | `modules/bitacora/*` | `PaginaBitacora.tsx` | — | ITJ `BitacoraEventosIT` (doble de autorización), `BitacoraAutorizacionIT` (denegación real); VT (5) | **INSTITUTIONALLY BLOCKED**: `BITACORA_CONSULTAR` no existe en catálogo (D1); fuentes parciales; retención sin definir |
 
 ## 5. Comportamiento de producción faltante (no solo pruebas)
@@ -74,7 +74,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 2. **Emisión de resultados (CU-21/23/27) imposible en producción** hasta que exista un catálogo aprobado (PENDING-05); solo hay fixtures sintéticas de prueba.
 3. **Fotos/anexos (CU-20/26), validación CU-28, provisión CU-02**: apagados por configuración hasta aprobar política (por diseño correcto, pero sin vertical alcanzable).
 4. **Sin nombres históricos inmutables** (CU-29): razón social/placa/persona muestran el maestro vigente.
-5. **Sin vertical** de CU-08, CU-25, CU-30.
+5. **Sin vertical** de CU-08 y CU-25. CU-30 solo tiene recuentos descriptivos; los indicadores oficiales siguen sin definir (PENDING-11).
 6. **Móvil:** incidencias (CU-14) sin pruebas; sin UI de reclamos/inspección (previsto web).
 
 ## 6. Desconocidos explícitos
@@ -434,6 +434,25 @@ CI: `146ca8c` — Engineering foundation (run 44648958801) **PASS**: `flutter an
 | A4 en CU-14, incidencias offline/tardías, categorías | **PENDING** | D1, decisión institucional, PENDING-06 |
 
 Conteos sin cambio: CU-13 y CU-14 siguen **PARTIAL**.
+
+## 26. CU-30 reportes descriptivos del servicio (corte mínimo, municipal) · RF-24
+
+Vertical de solo lectura `GET /api/reportes-servicio/resumen?desde&hasta[&empresaId][&periodoId]` y página `/reportes-servicio`. Alcance: el mismo de CU-29 (fecha de servicio = inicio programado en America/La_Paz, ambos extremos incluidos). Autorización: `JORNADAS_CONSULTAR` para el reporte (igual que CU-29) y, para cada fuente adicional, el permiso propio de su módulo (`TRAYECTORIA_JORNADA_CONSULTAR`, `CORRECTIVA_CONSULTAR`, `FISCALIZACION_CONSULTAR`, `RECLAMO_CONSULTAR`); sin permisos nuevos. Recuentos: jornadas, sustituidas, con asignación, posiciones GPS, jornadas con GPS, incidencias, inspecciones, reclamos vinculados y reclamos recibidos (este último solo sin filtro de empresa/periodo). Eventos INICIO/FIN: «no consultado» (sin permiso municipal aprobado, igual que CU-29).
+
+Verificado (local): `ReportesServicioIT` 6/6 y variante con rol no propietario 6/6; `ReportesServicioNavegadorIT` 1/1 (Chromium real); web `tsc`, vitest 75/75, build.
+
+| Criterio | Estado | Evidencia |
+|---|---|---|
+| CA-30-01 filtro por periodo y empresa | **Verificado** | empresa y periodo restringen el alcance; periodo de otra empresa 400; empresa/periodo inexistentes 404 (no «cero») |
+| CA-30-02 agregados según filtros | **Verificado** | recuentos exactos sobre fixture propio, incluidos los bordes de día en America/La_Paz |
+| CA-30-03 definición de cada recuento | **Verificado** | definición textual y fuente (tabla) por recuento; naturaleza «no es indicador oficial» |
+| CA-30-04 faltante no se sustituye por cero | **Verificado** | `SIN_REGISTROS` (0 consultado) frente a `ACCESO_NO_PERMITIDO` (sin cifra) y `NO_CONSULTADO`/`NO_APLICA` |
+| CA-30-05 sin cumplimiento oficial | **Verificado** | solo recuentos enteros; sin porcentajes, KPIs, cumplimiento ni sanciones |
+| CA-30-06 supervisor sin agregados de otra empresa | **Verificado** (por denegación) | A4 con concesión de periodo: 403. FA-03 (A4 sobre su empresa) no habilitado: D1 |
+| CA-30-07 la generación no altera registros | **Verificado** | huella de tablas fuente idéntica antes/después (REST e interfaz); transacción de solo lectura; la interfaz no envía escrituras |
+| CA-30-08 referencia temporal y fuente | **Verificado** | filtros, zona horaria, `generadoEn` y «último registro» por fuente |
+| CA-30-09 exportación no autorizada | **Verificado** (por ausencia) | no hay exportación (formato no aprobado); rutas de exportación 403 |
+| Reportes, fórmulas y unidades oficiales (PENDING-11); formato de exportación; A2/A4 (D1) | **PENDING** | no inventados |
 
 ## 9. Distinción final
 
