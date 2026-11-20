@@ -61,7 +61,8 @@ function Expediente({ token, jornada, vencer }: { token: string; jornada: string
     } catch (e) {
       if (!vida.current.signal.aborted) {
         fallo(e);
-        if (e instanceof ErrorActuacion && e.estado === 400) throw e;
+        // 400/409 son rechazos definitivos: se liberan los datos para corregirlos. Solo un resultado incierto (red, 5xx) conserva la solicitud.
+        if (e instanceof ErrorActuacion && (e.estado === 400 || e.estado === 409)) throw e;
       }
       return false;
     }
@@ -107,7 +108,7 @@ function Solicitud({ datos, ocupado, guardar }: { datos: ExpedienteCorrectivo; o
       inspeccionId: tipo === 'inspeccion' ? id : null, fiscalizacionId: tipo === 'fiscalizacion' ? id : null, descripcion: f.get('descripcion') };
     setPendiente(c);
     try { if (await guardar(c)) { setPendiente(null); form.reset(); } }
-    catch { setPendiente(null); } // Rechazo 400 confirmado: permite corregir datos.
+    catch { setPendiente(null); } // Rechazo definitivo (400/409): permite corregir datos.
   }
   const hayOrigen = datos.incidencias.length + datos.inspecciones.length + (datos.fiscalizacion ? 1 : 0) > 0;
   return <form onSubmit={enviar}><h2>Solicitar corrección municipal</h2><fieldset disabled={ocupado || !!pendiente || !hayOrigen}>
