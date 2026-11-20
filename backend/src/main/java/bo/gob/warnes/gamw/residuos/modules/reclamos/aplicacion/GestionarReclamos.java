@@ -142,7 +142,10 @@ public class GestionarReclamos {
         permisos.exigirConsultaPunto(a);permisos.exigirRegistroPunto(a);requerido(e);requerido(e.solicitudId());texto(e.denominacion(),200,true);texto(e.descripcion(),20000,true);texto(e.sustentoMunicipal(),10000,true);
         coordenadas(e.longitud(),e.latitud(),true);fuentes(a,e.reclamoId(),e.inspeccionId());
         String h=huella(null,e);var previa=anterior(Registro.PUNTO,e.solicitudId(),a,h);if(previa.isPresent()) return punto(a,previa.get());
-        UUID id=UUID.randomUUID();repo.crearPunto(id,e.solicitudId(),h,e.denominacion(),e.descripcion(),e.longitud(),e.latitud(),e.sustentoMunicipal(),e.reclamoId(),e.inspeccionId(),a.usuarioId());return punto(a,id);
+        UUID id=UUID.randomUUID();
+        if(!repo.crearPunto(id,e.solicitudId(),h,e.denominacion(),e.descripcion(),e.longitud(),e.latitud(),e.sustentoMunicipal(),e.reclamoId(),e.inspeccionId(),a.usuarioId()))
+            return punto(a,anterior(Registro.PUNTO,e.solicitudId(),a,h).orElseThrow(()->error(HttpStatus.CONFLICT,"Solicitud concurrente no confirmada; consulte antes de reintentar.")));
+        return punto(a,id);
     }
     @Transactional public DetallePunto observar(UsuarioAutenticado a,UUID id,NuevaObservacion e) {
         permisos.exigirConsultaPunto(a);permisos.exigirRegistroPunto(a);requerido(e);requerido(e.solicitudId());instante(e.observadaEn());texto(e.descripcion(),20000,true);fuentes(a,e.reclamoId(),e.inspeccionId());bloquearPunto(id);

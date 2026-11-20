@@ -40,7 +40,8 @@ public interface RepositorioReclamos {
     Optional<Punto> punto(UUID id);
     List<Observacion> observaciones(UUID id);
     Optional<Validacion> validacion(UUID id);
-    void crearPunto(UUID id,UUID solicitud,String huella,String nombre,String descripcion,double lon,double lat,String sustento,UUID reclamo,UUID inspeccion,UUID actor);
+    /** @return false si otra transacción ya confirmó la misma solicitud (no se inserta nada). */
+    boolean crearPunto(UUID id,UUID solicitud,String huella,String nombre,String descripcion,double lon,double lat,String sustento,UUID reclamo,UUID inspeccion,UUID actor);
     void observar(UUID solicitud,String huella,UUID punto,UUID actor,Instant fecha,String descripcion,UUID inspeccion,UUID reclamo);
     void validar(UUID punto,UUID actor,String fundamento,String politica);
 }
