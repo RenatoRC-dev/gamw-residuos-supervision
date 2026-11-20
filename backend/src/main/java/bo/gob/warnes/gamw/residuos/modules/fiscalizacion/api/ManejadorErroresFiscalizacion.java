@@ -10,6 +10,9 @@ import tools.jackson.core.JacksonException;
 public class ManejadorErroresFiscalizacion {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail conflicto() { return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,"Solicitud duplicada o referencia inválida. No se reemplaza ningún antecedente."); }
+    /** Fallo de persistencia no clasificado: la transacción se revirtió; no se confirma la actuación ni se informa como falta de permiso. */
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    public ProblemDetail persistencia() { return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,"No se pudo consultar o guardar; no se registró ninguna actuación y los antecedentes permanecen intactos. Reintente."); }
     @ExceptionHandler(JacksonException.class)
     public ProblemDetail contrato() { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,"Contrato de inspección inválido; identidad y registro se determinan en servidor."); }
     @ExceptionHandler(MaxUploadSizeExceededException.class)
