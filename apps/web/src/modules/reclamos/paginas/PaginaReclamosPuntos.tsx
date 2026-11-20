@@ -44,7 +44,10 @@ function useOperaciones(token: string, vencer: (s?: string) => void) {
     setOcupado(true); setMensaje('');
     try { const d = await solicitarReclamos<T>(token, ruta, vida.current.signal, datos); if (vida.current.signal.aborted) return false;
       recibir(d); setMensaje('Registro confirmado; origen e historia conservados.'); return true;
-    } catch (e) { if (!vida.current.signal.aborted) { fallo(e); if (e instanceof ErrorReclamo && e.estado === 400) throw e; } return false; }
+    } catch (e) {
+      // 400/409 son rechazos definitivos: se liberan los datos para corregirlos. Solo un resultado incierto (red, 5xx) conserva la solicitud para reintento.
+      if (!vida.current.signal.aborted) { fallo(e); if (e instanceof ErrorReclamo && (e.estado === 400 || e.estado === 409)) throw e; } return false;
+    }
     finally { if (!vida.current.signal.aborted) setOcupado(false); }
   }
   async function descargar(id: string, anexo: Anexo) {
@@ -58,7 +61,7 @@ function Formulario({ titulo, construir, enviar, ocupado, children }: { titulo: 
   async function registrar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const form = e.currentTarget; setError('');
     try { const datos = pendiente ?? construir(new FormData(form)); setPendiente(datos); if (await enviar(datos)) { setPendiente(null); form.reset(); } }
-    catch { setPendiente(null); setError('Revise los campos. La solicitud inválida no se confirma.'); }
+    catch (e) { setPendiente(null); setError(e instanceof ErrorReclamo && e.estado === 409 ? 'Rechazada por conflicto con el historial; no se registró. Corrija los datos o actualice el historial.' : 'Revise los campos. La solicitud inválida no se confirma.'); }
   }
   return <form onSubmit={registrar}><h3>{titulo}</h3><p role="alert">{error}</p><fieldset disabled={ocupado || pendiente !== null}>{children}</fieldset>
     <button disabled={ocupado}>{pendiente !== null ? 'Reintentar misma solicitud' : 'Registrar'}</button>
