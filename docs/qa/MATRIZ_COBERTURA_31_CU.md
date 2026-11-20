@@ -600,6 +600,8 @@ Verificado (local, 2026-11-20): `VerificacionCorrectivaIT` 5/5 y variante con ro
 
 **Defecto corregido (interfaz, reproducido antes de corregir):** tras un rechazo definitivo (409) el formulario de verificación quedaba bloqueado (`fieldset` deshabilitado) y solo ofrecía «Reintentar misma verificación», que repetía la petición rechazada. Ahora un 400 o 409 libera los datos para corregirlos con una solicitud nueva; solo un resultado incierto (red o 5xx) conserva la misma solicitud para reintentar (`PaginaCorrectivas.tsx`, función compartida `guardar`; mismo criterio que §28). El 409 y el 503 de la interfaz se simularon en la red del navegador; los reales del backend están cubiertos en `VerificacionCorrectivaIT`. Backend: sin defectos.
 
+CI `49d8862`: Engineering foundation (run 44773845081) **PASS** (`VerificacionCorrectivaIT` en `-Dit.test`, la variante no propietaria por `*EjecucionNoPropietariaIT`); Browser E2E (44773844957) **PASS** (`VerificacionCorrectivaNavegadorIT` en `-Dtest`).
+
 | Criterio | Estado | Evidencia |
 |---|---|---|
 | CA-23-01 solicitud y respuestas históricas | **Verificado** | expediente: acción con solicitante, atención con autor (operador), comunicación y recepción; el lector y la empresa ven la cadena (API y navegador) |
