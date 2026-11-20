@@ -65,6 +65,12 @@ public class GestionarReferenciasEspaciales {
             repo.insertar(version,a.usuarioId()); return vista(version);
         } catch(DataIntegrityViolationException | BadSqlGrammarException error) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Geometría, vigencia o asociación espacial inválida; se conserva la historia anterior.");
+        } catch(org.springframework.jdbc.UncategorizedSQLException error) {
+            // CU-10 E1: ST_GeomFromGeoJSON rechaza GeoJSON malformado con SQLSTATE XX000 (p. ej. 'coordinates' no es un arreglo). Es un
+            // error del contrato espacial enviado, no de autorización ni de infraestructura; cualquier otro estado se propaga sin ocultarlo.
+            if("XX000".equals(error.getSQLException()==null?null:error.getSQLException().getSQLState()))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"GeoJSON malformado; no se registró la referencia y se conserva la historia anterior.");
+            throw error;
         }
     }
     @Transactional public void cerrar(UsuarioAutenticado a,UUID referencia,String motivo) {

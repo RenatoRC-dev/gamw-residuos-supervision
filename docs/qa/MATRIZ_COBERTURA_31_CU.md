@@ -45,7 +45,7 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 07 Responsables | RF-04 | A1 / A4 según ámbito | `PersonasController`, vínculos/funciones | `PaginaOperadores.tsx` | — | ITD `RegistroOperativoIT`; E2E JWT `flujo-vehiculos-personal.test.mjs` vía `VehiculosPersonalNavegadorIT` (§24); ITJ `FalloPersistenciaRegistroOperativoIT`, `ConcurrenciaPeriodoJornadaIT`; E2E dev-local | **IMPLEMENTED** (técnico, §24): A1 bajo JWT + `PERSONAS_*`; cierre incompatible con asignaciones = 409. Pendiente: D1 (A4), criterios de conducción y obligatoriedad de cuenta (no inventados) |
 | 08 Estructura territorial | RF-05 | A1 | — | — | — | — | **INSTITUTIONALLY BLOCKED**: jerarquía y fuentes oficiales inexistentes (CU-08). No inventar |
 | 09 Rutas | RF-06 | **A4** (baseline) | `RutasReferenciaController`, V2/V3 versionado | `PaginaRutasReferencia.tsx` | — | ITD `RutasReferenciaIT`; E2E `rutas-referencia`; VT | **PARTIAL**: el código restringe a A1; escritura A4 sin alcance aprobado; UI bajo JWT sin verificar |
-| 10 Puntos de control / geocercas | RF-06 | A1 / A3 | `ReferenciasEspacialesController`, V12 | `PaginaReferenciasEspaciales.tsx` | — | **—** | **PARTIAL**: sin pruebas; fuentes/vigencia de geocercas por definir |
+| 10 Puntos de control / geocercas | RF-06 | A1 / A3 | `ReferenciasEspacialesController`, V12 | `PaginaReferenciasEspaciales.tsx` | — | ITJ `ReferenciasEspacialesIT` 6 (+ no propietaria 6); E2E `flujo-referencias.test.mjs` vía `ReferenciasEspacialesNavegadorIT` (dibujo y render reales en el lienzo) (§27) | **PARTIAL** (§27): registro, versionado, cierre y consulta verificados técnicamente con concesiones explícitas. Pendiente: autoridad A1/A3 y procedimiento de validación (D1), tipos/radios/áreas institucionales, fuentes de puntos reales, validación en campo |
 | 11 Programar jornada | RF-07 | **A4** | `GestionarJornadas`, `PlanificarJornadasOperador`, `JornadasOperadorController` | `PaginaReprogramacionEmpresa.tsx` (`/empresa/jornadas`) ✔ UI A4; `PaginaJornadas.tsx` (municipal) | — | E2E `flujo-planificacion.test.mjs` vía `PlanificacionOperadorNavegadorIT` (UI A4, JWT, concesión de periodo) + REST; ITD `JornadasIT` (11); ITJ `AutorizacionOperativaV19IT` (6) | **IMPLEMENTED** (técnico, §13). Pendiente institucional: calendarios/horarios oficiales y D1 (no inventados); la creación de empresas/periodos/rutas se siembra por SQL |
 | 12 Asignar recursos | RF-07 | **A4** | ídem + `ReferenciasJornadas` | ídem | — | ídem (asignar, reasignar, historial, una abierta, recursos elegibles) | **IMPLEMENTED** (técnico, §13); alta de vínculos de recursos = CU-06/07 (A1, §24) |
 | 13 Ejecutar jornada | RF-08/09/10/11 | A5 | `EjecucionJornadasController`, `PosicionesGpsController`, `MisJornadasController`, V7–V9 | — | `pagina_operacion.dart`, SQLite, `ServicioCapturaGps.kt`, cola/sync | ITJ `EjecucionAutenticadaIT`, `EventosEjecucionIT`, `PosicionesGpsIT`, `CadenaOperativaFiscalizacionIT`; FT `test/auth/pagina_operacion_test.dart`; EMU `qa_emulador/cadena_offline_emulador_test.dart` (**GPS sintético**, no UI); FT `test/gps/*`, `test/auth/sesion_offline_test.dart` (§25) | **PARTIAL** (§25): CA-13-01…10 con evidencia automatizada; GPS nativo real, batería, segundo plano, HyperOS/fabricantes y CA-4A-21 **sin QA física** (lista `QA_FISICA_REDMI_15C_CU13_CU14.md`) |
@@ -455,6 +455,28 @@ CI: `ea3c997` Browser E2E (run 44657906186) **PASS**, incluye `ReportesServicioN
 | CA-30-08 referencia temporal y fuente | **Verificado** | filtros, zona horaria, `generadoEn` y «último registro» por fuente |
 | CA-30-09 exportación no autorizada | **Verificado** (por ausencia) | no hay exportación (formato no aprobado); rutas de exportación 403 |
 | Reportes, fórmulas y unidades oficiales (PENDING-11); formato de exportación; A2/A4 (D1) | **PENDING** | no inventados |
+
+## 27. F2 CU-10 puntos de control y geocercas · RF-06
+
+Verificado (local): `ReferenciasEspacialesIT` 6/6 y variante con rol no propietario 6/6 (JWT, PostgreSQL/PostGIS aislado); `ReferenciasEspacialesNavegadorIT` 1/1: Chromium real con MapLibre + Terra Draw sobre WebGL (SwiftShader), estilo local sin teselas externas. El punto y la geocerca se **dibujan con el ratón sobre el lienzo**, se guardan, se recuperan de PostGIS con la misma geometría y su capa persistida se verifica **leyendo los píxeles del lienzo** (color del círculo y del relleno). Por la base compartida, la respuesta real del listado se restringe a la RutaVersion propia de la prueba. Web `tsc`, vitest 75/75, build. Coordenadas, radios y rutas sintéticos; ninguna ubicación ni radio institucional.
+
+**Defectos corregidos (probados):**
+1. GeoJSON malformado (p. ej. `coordinates` no es un arreglo): PostGIS responde `XX000` y la excepción llegaba a `/error` (cerrado por la seguridad), lo que daba un 403 engañoso. Ahora responde **400** y no persiste nada.
+2. Fallo de persistencia sin manejador: llegaba a `/error` (403 «permiso requerido»). Ahora responde **503**, se revierte y la versión anterior sigue abierta (`ManejadorErroresReferenciasEspaciales`).
+3. Interfaz: tras guardar, el borrador de Terra Draw quedaba sobre el mapa y **tapaba por completo la capa persistida**; «Nuevo registro» tampoco lo retiraba. Ahora se retira tras guardar y al iniciar otro registro.
+4. Interfaz: una cuenta con solo `REFERENCIA_ESPACIAL_CONSULTAR` veía un error general porque el selector de versiones de ruta exige `GESTIONAR`. Ahora la consulta funciona sin alerta y se informa «solo consulta» (detectado por análisis de código; cubierto por la E2E).
+
+| Criterio | Estado | Evidencia |
+|---|---|---|
+| CA-10-01 registrar y recuperar un punto válido | **Verificado** | dibujado en el lienzo; SRID 4326, `POINT`, 2D, radio explícito; GET devuelve la misma geometría |
+| CA-10-02 geometría inválida rechazada | **Verificado** | polígono que se cruza, anillo sin cerrar, 3D, fuera de rango, CRS alternativo, tipo no admitido o incoherente, radio ausente/excesivo, geocerca con radio, GeoJSON malformado, nombre vacío: 400 sin persistir |
+| CA-10-03 vínculo con RutaVersion | **Verificado** | asociación conservada; RutaVersion inexistente 400 |
+| CA-10-04 actualización sin descontextualizar la historia | **Verificado** | nueva versión cierra la anterior en su inicio; la anterior conserva geometría y radio; UPDATE/DELETE en SQL rechazados; CU-18 evalúa cada posición con la versión vigente al capturarla |
+| CA-10-05 consulta con geometría y nombre sin cumplimiento | **Verificado** | listado y mapa (lector incluido) sin campos de evaluación |
+| CA-10-06 sin autorización no modifica | **Verificado** | lector 403 al escribir; cuentas sin permiso espacial, A4 y revisor GPS 403; revocación efectiva con el mismo token |
+| CA-10-07 utilizable por consulta espacial posterior | **Verificado** | `/api/revision-gps/.../coincidencias` usa la referencia (2 muestras observadas en v1, 0 reasignadas a v2) |
+| Cierre / reversión | **Verificado** | cierre 204; repetir o versionar una referencia cerrada o inexistente 409; fallo inyectado al guardar v2: 503, v1 sigue abierta |
+| Autoridad A1/A3 y validación (D1), tipos/radios/áreas institucionales, fuentes de puntos reales, validación en campo | **PENDING** | no inventados; el radio sigue siendo técnico y explícito |
 
 ## 9. Distinción final
 

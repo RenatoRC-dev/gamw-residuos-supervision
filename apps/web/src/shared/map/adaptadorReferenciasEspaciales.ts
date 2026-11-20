@@ -34,6 +34,8 @@ export function crearMapaReferencias(nodo: HTMLElement, cambio: (g: Geometry | n
   });
   return {
     dibujar(tipo: 'point' | 'polygon') { if (!dibujo) { error('Espere a que el mapa esté listo.'); return; } dibujo.clear(); cambio(null); dibujo.setMode(tipo); },
+    /** Quita el borrador: tras guardar (o al iniciar otro registro) no debe tapar la referencia persistida ni confundirse con ella. */
+    limpiar() { if (!dibujo) return; dibujo.clear(); dibujo.setMode('select'); },
     mostrar(datos: FeatureCollection) {
       referencias = datos; mapa.getSource<GeoJSONSource>('controles')?.setData(datos);
       const limites = new LngLatBounds();

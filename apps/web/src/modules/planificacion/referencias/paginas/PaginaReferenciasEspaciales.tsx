@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { FeatureCollection, Geometry } from 'geojson';
 import { useSesionActual } from '../../../administracion/identidad/aplicacion/contextoAutenticacion';
 import { crearMapaReferencias } from '../../../../shared/map/adaptadorReferenciasEspaciales';
-import { referenciasApi, type ReferenciaEspacial, type VersionRutaControl } from '../api/referenciasEspaciales';
+import { ErrorEspacial, referenciasApi, type ReferenciaEspacial, type VersionRutaControl } from '../api/referenciasEspaciales';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 export function PaginaReferenciasEspaciales() {
@@ -19,7 +19,7 @@ function Gestion({ token }: { token: string }) {
   const [revision, setRevision] = useState(0), [versionando, setVersionando] = useState<ReferenciaEspacial | null>(null);
   const [nombre, setNombre] = useState(''), [ruta, setRuta] = useState(''), [motivo, setMotivo] = useState(''), [radio, setRadio] = useState('');
   const [geometria, setGeometria] = useState<Geometry | null>(null), [error, setError] = useState(''), [aviso, setAviso] = useState('');
-  const [ocupado, setOcupado] = useState(false);
+  const [ocupado, setOcupado] = useState(false), [soloConsulta, setSoloConsulta] = useState(false);
   const nodo = useRef<HTMLDivElement>(null), mapa = useRef<ReturnType<typeof crearMapaReferencias> | null>(null);
   const peticion = useRef<AbortController | null>(null);
   const cambio = useCallback((g: Geometry | null) => setGeometria(g), []);
@@ -37,8 +37,12 @@ function Gestion({ token }: { token: string }) {
   }, [token, desde, revision]);
   useEffect(() => {
     const abort = new AbortController(); setRutas([]);
-    referenciasApi.rutas(token, paginaRutas, abort.signal).then(r => { if (!abort.signal.aborted) setRutas(r); })
-      .catch(e => { if (!abort.signal.aborted) setError((e as Error).message); });
+    referenciasApi.rutas(token, paginaRutas, abort.signal).then(r => { if (!abort.signal.aborted) { setRutas(r); setSoloConsulta(false); } })
+      .catch(e => {
+        if (abort.signal.aborted) return;
+        // Las versiones de ruta solo se ofrecen para gestionar: un 403 aquí no es un fallo de la consulta de referencias.
+        if (e instanceof ErrorEspacial && e.estado === 403) setSoloConsulta(true); else setError((e as Error).message);
+      });
     return () => abort.abort();
   }, [token, paginaRutas]);
   useEffect(() => {
@@ -53,7 +57,11 @@ function Gestion({ token }: { token: string }) {
     try {
       const v = await referenciasApi.guardar(token, versionando?.referenciaId ?? null, { nombre, rutaVersionId: ruta, motivo,
         geometria, tipo: geometria.type === 'Point' ? 'PUNTO' : 'GEOCERCA', radioMetros: geometria.type === 'Point' ? Number(radio) : null }, abort.signal);
-      if (!abort.signal.aborted) { setAviso(`Versión ${v.numeroVersion} conservada desde ${v.vigenteDesde}.`); setVersionando(null); setRevision(n => n + 1); }
+      if (!abort.signal.aborted) {
+        setAviso(`Versión ${v.numeroVersion} conservada desde ${v.vigenteDesde}.`); setVersionando(null); setRevision(n => n + 1);
+        // El borrador se retira: la capa persistida (recuperada del servidor) es la que queda a la vista.
+        mapa.current?.limpiar(); setGeometria(null);
+      }
     } catch (e) { if (!abort.signal.aborted) setError((e as Error).message); }
     finally { if (!abort.signal.aborted) setOcupado(false); }
   };
@@ -66,6 +74,7 @@ function Gestion({ token }: { token: string }) {
   };
   return <>
     {error && <p role="alert">{error}</p>}{aviso && <p role="status">{aviso}</p>}
+    {soloConsulta && <p role="note">Su cuenta tiene solo consulta: registrar, versionar o cerrar referencias requiere la concesión REFERENCIA_ESPACIAL_GESTIONAR.</p>}
     <button onClick={() => mapa.current?.dibujar('point')}>Dibujar punto</button>
     <button onClick={() => mapa.current?.dibujar('polygon')}>Dibujar geocerca</button>
     <div ref={nodo} aria-label="Editor de referencias espaciales" style={{ height: 420 }} />
@@ -82,7 +91,7 @@ function Gestion({ token }: { token: string }) {
       <p>Vigencia desde el guardado; no se retrofecha. Los cambios crean versiones, sin sobrescribir geometrías. El radio es técnico explícito, no contractual.</p>
       <p>Geometría: {geometria?.type ?? 'No dibujada'}. MultiPolygon se conserva; para reemplazarlo puede dibujar un Polygon nuevo.</p>
       <button disabled={ocupado}>Guardar {versionando ? 'nueva versión' : 'referencia'}</button>
-      <button type="button" onClick={() => { setVersionando(null); setGeometria(null); setNombre(''); setRadio(''); }}>Nuevo registro</button>
+      <button type="button" onClick={() => { mapa.current?.limpiar(); setVersionando(null); setGeometria(null); setNombre(''); setRadio(''); }}>Nuevo registro</button>
     </form>
     <p>Mapa y listado muestran esta página de versiones, incluidas las cerradas; no son ubicaciones oficiales precargadas.</p>
     <ul>{filas.map(v => <li key={v.id}>{v.nombre} · {v.tipo} v{v.numeroVersion} · RutaVersion {v.rutaVersionId} · {v.vigenteDesde} — {v.vigenteHasta ?? 'Abierta'} · Radio {v.radioMetros ?? 'No aplica'} m
