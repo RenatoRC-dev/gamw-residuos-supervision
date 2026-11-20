@@ -6,17 +6,27 @@ import '../../jornadas/aplicacion/cola_ejecucion.dart' show generarUuidEvento;
 /// CU-14 directo en línea. No altera SQLite ni la cola de INICIO/FIN/GPS.
 class PanelIncidencias extends StatefulWidget {
   const PanelIncidencias({super.key, required this.sesiones, required this.usuarioId,
-    required this.jornadaId, required this.asignacionId});
+    required this.jornadaId, required this.asignacionId, this.ahora});
   final GestorSesion sesiones;
   final String usuarioId, jornadaId, asignacionId;
+  /// Reloj inyectable (pruebas); por defecto DateTime.now.
+  final DateTime Function()? ahora;
   @override
   State<PanelIncidencias> createState() => _PanelIncidenciasState();
 }
 
 class _PanelIncidenciasState extends State<PanelIncidencias> {
   final _descripcion = TextEditingController(), _evidencia = TextEditingController(), _lugar = TextEditingController();
-  final _fecha = TextEditingController(text: DateTime.now().toUtc().toIso8601String());
+  late final TextEditingController _fecha = TextEditingController(text: _horaActual());
+  // El panel se monta al seleccionar la asignación (antes del INICIO). Una fecha sugerida y no editada se renueva al abrir el
+  // formulario: si no, se declaraba la hora de selección, anterior al INICIO (409) o distinta del hecho (CA-CU-14-02).
+  bool _fechaEditada = false;
   Map<String, Object?>? _pendiente;
+  String _horaActual() => (widget.ahora ?? DateTime.now)().toUtc().toIso8601String();
+  void _renovarFechaSugerida() {
+    if (_fechaEditada || _pendiente != null || _ocupado) return;
+    setState(() => _fecha.text = _horaActual());
+  }
   List<Map<String, dynamic>> _historia = [];
   bool _ocupado = false;
   String _aviso = '';
@@ -66,7 +76,7 @@ class _PanelIncidenciasState extends State<PanelIncidencias> {
       setState(() {
         _historia = [..._historia.where((e) => e['id'] != registrado['id']), registrado];
         _pendiente = null; _descripcion.clear(); _evidencia.clear(); _lugar.clear();
-        _fecha.text = DateTime.now().toUtc().toIso8601String();
+        _fechaEditada = false; _fecha.text = _horaActual();
         _aviso = 'Incidencia confirmada por el servidor. No determina incumplimiento ni genera una correctiva automáticamente.';
       });
     } on ErrorBackend catch (e) {
@@ -87,11 +97,12 @@ class _PanelIncidenciasState extends State<PanelIncidencias> {
   void dispose() { _descripcion.dispose(); _evidencia.dispose(); _lugar.dispose(); _fecha.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) => ExpansionTile(title: const Text('Incidencias de mi asignación'), children: [
+  Widget build(BuildContext context) => ExpansionTile(title: const Text('Incidencias de mi asignación'),
+    onExpansionChanged: (abierto) { if (abierto) _renovarFechaSugerida(); }, children: [
     const Text('Registro directo con conexión, INICIO sincronizado y sin FIN. Captura offline de incidencias y acceso de supervisor aún no habilitados.'),
     const Text('Describa hechos, no conclusiones de fiscalización. No se exigen fotografías ni coordenadas.'),
     if (_aviso.isNotEmpty) Text(_aviso, semanticsLabel: _aviso),
-    TextField(controller: _fecha, enabled: !_ocupado && _pendiente == null, decoration: const InputDecoration(labelText: 'Fecha del hecho ISO 8601 (Z = UTC; Bolivia −04:00)')),
+    TextField(controller: _fecha, enabled: !_ocupado && _pendiente == null, onChanged: (_) => _fechaEditada = true, decoration: const InputDecoration(labelText: 'Fecha del hecho ISO 8601 (Z = UTC; Bolivia −04:00)')),
     TextField(controller: _descripcion, enabled: !_ocupado && _pendiente == null, maxLength: 20000, maxLines: 3, decoration: const InputDecoration(labelText: 'Descripción factual obligatoria')),
     TextField(controller: _lugar, enabled: !_ocupado && _pendiente == null, maxLength: 2000, decoration: const InputDecoration(labelText: 'Lugar descrito (opcional)')),
     TextField(controller: _evidencia, enabled: !_ocupado && _pendiente == null, maxLength: 10000, maxLines: 2,
