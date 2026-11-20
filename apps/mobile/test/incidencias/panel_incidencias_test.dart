@@ -60,6 +60,12 @@ Future<void> _montar(WidgetTester tester, GestorSesion sesion, {DateTime Functio
   await tester.pumpAndSettle();
 }
 
+/// Mismo cierre que pagina_operacion_test: desmonta el árbol y libera la sesión (cancela su temporizador de expiración).
+Future<void> _cerrar(WidgetTester tester, GestorSesion sesion) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  sesion.dispose();
+}
+
 Finder _campo(String etiqueta) => find.widgetWithText(TextField, etiqueta);
 Future<void> _registrar(WidgetTester tester, String boton) async {
   await tester.ensureVisible(find.text(boton));
@@ -85,6 +91,7 @@ void main() {
     expect(find.textContaining('Incidencia confirmada por el servidor'), findsOneWidget);
     expect(find.textContaining('No determina incumplimiento'), findsOneWidget);
     expect(find.text('Vía inaccesible por obra'), findsOneWidget, reason: 'queda visible como antecedente');
+    await _cerrar(tester, sesion);
   });
 
   testWidgets('sin descripción o sin zona horaria explícita no se envía nada', (tester) async {
@@ -97,6 +104,7 @@ void main() {
     await _registrar(tester, 'Registrar incidencia');
     expect(find.textContaining('Complete descripción y fecha ISO 8601'), findsOneWidget);
     expect(api.enviadas, isEmpty);
+    await _cerrar(tester, sesion);
   });
 
   testWidgets('sin red o con 503 no hay confirmación falsa y el reintento conserva la misma solicitud', (tester) async {
@@ -117,6 +125,7 @@ void main() {
     expect(api.enviadas, hasLength(3));
     expect(api.enviadas.map((e) => e['solicitudId']).toSet(), hasLength(1), reason: 'idempotencia: mismo solicitudId');
     expect(api.enviadas.map((e) => e['ocurridaEn']).toSet(), hasLength(1));
+    await _cerrar(tester, sesion);
   });
 
   testWidgets('400 permite corregir; 403 y 409 se informan sin confirmar', (tester) async {
@@ -134,6 +143,7 @@ void main() {
     expect(find.textContaining('Incidencia confirmada'), findsNothing);
     expect(api.enviadas[0]['solicitudId'], isNot(api.enviadas[1]['solicitudId']), reason: 'tras 400 se genera una solicitud nueva');
     expect(api.enviadas[1]['solicitudId'], api.enviadas[2]['solicitudId']);
+    await _cerrar(tester, sesion);
   });
 
   testWidgets('la fecha sugerida se toma al abrir el formulario, no al seleccionar la asignación', (tester) async {
@@ -155,6 +165,7 @@ void main() {
     await tester.tap(find.text('Incidencias de mi asignación')); await tester.pumpAndSettle();
     await tester.tap(find.text('Incidencias de mi asignación')); await tester.pumpAndSettle();
     expect(tester.widget<TextField>(fecha).controller!.text, '2026-11-19T10:05:00-04:00');
+    await _cerrar(tester, sesion);
   });
 
   testWidgets('una sesión de otra cuenta no puede registrar ni consultar con este panel', (tester) async {
@@ -165,6 +176,7 @@ void main() {
     final consultar = tester.widget<TextButton>(find.widgetWithText(TextButton, 'Consultar incidencias registradas'));
     expect(consultar.onPressed, isNull);
     expect(api.rutas, isEmpty);
+    await _cerrar(tester, sesion);
   });
 
   testWidgets('consulta solo las incidencias propias de la asignación', (tester) async {
@@ -172,5 +184,6 @@ void main() {
     await _montar(tester, sesion);
     await _registrar(tester, 'Consultar incidencias registradas');
     expect(api.rutas.single, 'GET jornadas/$_jornada/incidencias-propias?asignacionId=$_asignacion token=jwt-$_usuario');
+    await _cerrar(tester, sesion);
   });
 }
