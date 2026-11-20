@@ -572,6 +572,8 @@ Observación de diseño, sin cambio: el GPS del expediente (`/api/fiscalizacion/
 
 Verificado (local, 2026-11-20): `InspeccionCampoIT` 8/8 (antes 4) y variante con rol no propietario 8/8; `InspeccionEvidenciasSinteticasIT` 3/3; `InspeccionCampoNavegadorIT` 1/1 (Chromium real, REST real, JWT); regresión `FiscalizacionMunicipalIT` 4/4 y `CadenaOperativaFiscalizacionIT` 2/2; `verify -Ppostgres-integration` completo: integración 298/298 en 65 clases (2 omitidas: dispositivo físico). Configuración normal: `gamw.evidencias.fotografias-habilitadas=false` (PENDING-09). El canal de fotografías **existente** se ejercitó solo en `InspeccionEvidenciasSinteticasIT`, con configuración de prueba aislada y la referencia «PRUEBA-SINTETICA (no institucional, PENDING-09)»; no se definieron retención, privacidad, formatos ni procedimientos oficiales.
 
+CI `b2cc890`: Engineering foundation (run 44704796493) **PASS** (`InspeccionCampoIT` e `InspeccionEvidenciasSinteticasIT` en `-Dit.test`, la variante no propietaria por `*EjecucionNoPropietariaIT`); Browser E2E (44704796486) **PASS** (`InspeccionCampoNavegadorIT` en `-Dtest`).
+
 **Defectos corregidos (probados antes de corregir):**
 1. Una inspección con fecha de realización **futura** se aceptaba (200): quedaba registrada antes de haber ocurrido. Ahora responde 400 sin registro.
 2. Con fotografías habilitadas, una fecha de captura **futura** también se aceptaba (200, con evidencia guardada). Ahora responde 400 sin inspección ni evidencia. En la configuración normal no era alcanzable (fotos deshabilitadas).
