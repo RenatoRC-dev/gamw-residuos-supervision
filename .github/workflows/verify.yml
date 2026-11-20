@@ -32,7 +32,11 @@ jobs:
         with:
           path: ~/.m2/repository
           key: m2-integracion-${{ runner.os }}-${{ hashFiles('backend/pom.xml') }}
-          restore-keys: m2-integracion-${{ runner.os }}-
+          # Run 44659120496: con la caché propia vacía se descargaba TODO y Central volvió a rechazar. Respaldo: la caché ya guardada por
+          # setup-java (job verify), de modo que solo falte failsafe; tras una ejecución verde se guarda la clave propia completa.
+          restore-keys: |
+            m2-integracion-${{ runner.os }}-
+            setup-java-${{ runner.os }}-
       - uses: actions/cache@v4
         with:
           path: ~/.m2/wrapper
