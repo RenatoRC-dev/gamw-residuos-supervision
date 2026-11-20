@@ -48,8 +48,8 @@ Leyenda de pruebas: **ITJ** = IT con JWT real; **ITD** = IT en modo `desarrollo-
 | 10 Puntos de control / geocercas | RF-06 | A1 / A3 | `ReferenciasEspacialesController`, V12 | `PaginaReferenciasEspaciales.tsx` | — | **—** | **PARTIAL**: sin pruebas; fuentes/vigencia de geocercas por definir |
 | 11 Programar jornada | RF-07 | **A4** | `GestionarJornadas`, `PlanificarJornadasOperador`, `JornadasOperadorController` | `PaginaReprogramacionEmpresa.tsx` (`/empresa/jornadas`) ✔ UI A4; `PaginaJornadas.tsx` (municipal) | — | E2E `flujo-planificacion.test.mjs` vía `PlanificacionOperadorNavegadorIT` (UI A4, JWT, concesión de periodo) + REST; ITD `JornadasIT` (11); ITJ `AutorizacionOperativaV19IT` (6) | **IMPLEMENTED** (técnico, §13). Pendiente institucional: calendarios/horarios oficiales y D1 (no inventados); la creación de empresas/periodos/rutas se siembra por SQL |
 | 12 Asignar recursos | RF-07 | **A4** | ídem + `ReferenciasJornadas` | ídem | — | ídem (asignar, reasignar, historial, una abierta, recursos elegibles) | **IMPLEMENTED** (técnico, §13); alta de vínculos de recursos = CU-06/07 (A1, §24) |
-| 13 Ejecutar jornada | RF-08/09/10/11 | A5 | `EjecucionJornadasController`, `PosicionesGpsController`, `MisJornadasController`, V7–V9 | — | `pagina_operacion.dart`, SQLite, `ServicioCapturaGps.kt`, cola/sync | ITJ `EjecucionAutenticadaIT`, `EventosEjecucionIT`, `PosicionesGpsIT`, `CadenaOperativaFiscalizacionIT`; FT `test/auth/pagina_operacion_test.dart`; EMU `qa_emulador/cadena_offline_emulador_test.dart` (**GPS sintético**, no UI) | **PARTIAL**: GPS nativo, batería, segundo plano, fabricantes y CA-4A-21 sin QA física; el emulador no maneja la UI |
-| 14 Incidencia | RF-16 | A3/A4/A5 según ámbito | `ActuacionesController`, `GestionarActuaciones` | `PaginaCorrectivas.tsx` (lectura) | `panel_incidencias.dart` | REST en `FlujoMunicipalNavegadorIT` (alta, duplicado, tardía 409); móvil/web alta: **—** | **PARTIAL**: móvil sin pruebas; A4 y captura tardía/offline sin política |
+| 13 Ejecutar jornada | RF-08/09/10/11 | A5 | `EjecucionJornadasController`, `PosicionesGpsController`, `MisJornadasController`, V7–V9 | — | `pagina_operacion.dart`, SQLite, `ServicioCapturaGps.kt`, cola/sync | ITJ `EjecucionAutenticadaIT`, `EventosEjecucionIT`, `PosicionesGpsIT`, `CadenaOperativaFiscalizacionIT`; FT `test/auth/pagina_operacion_test.dart`; EMU `qa_emulador/cadena_offline_emulador_test.dart` (**GPS sintético**, no UI); FT `test/gps/*`, `test/auth/sesion_offline_test.dart` (§25) | **PARTIAL** (§25): CA-13-01…10 con evidencia automatizada; GPS nativo real, batería, segundo plano, HyperOS/fabricantes y CA-4A-21 **sin QA física** (lista `QA_FISICA_REDMI_15C_CU13_CU14.md`) |
+| 14 Incidencia | RF-16 | A3/A4/A5 según ámbito | `ActuacionesController`, `GestionarActuaciones` | `PaginaCorrectivas.tsx` (lectura) | `panel_incidencias.dart` | ITJ `IncidenciasOperativasIT` 5/5 (+ no propietaria 5/5); REST en `FlujoMunicipalNavegadorIT`; FT `test/incidencias/panel_incidencias_test.dart` 7 (CI) (§25) | **PARTIAL** (§25): flujo A5 en línea verificado técnicamente; A4 (registro y consulta, D1), incidencias offline/tardías y categorías (PENDING-06) sin política; sin QA en dispositivo |
 | 15 Monitorear posición | RF-12 | A3 / A4 | `MonitoreoController` | `PaginaMonitoreo.tsx` | — | E2E `flujo-monitoreo.test.mjs` vía `MonitoreoMunicipalNavegadorIT` (UI A3 + REST), §15 | **PARTIAL** (A3 verificado técnicamente, §15): A4 sigue bloqueado por D1 (sin permiso; 403) y falta QA de continuidad con ejecución real |
 | 16 Trayectoria GPS | RF-12 | A3 / **A4** | `TrayectoriasController`, `ConsultarTrayectoriasAutorizadas` | `PaginaTrayectorias.tsx`, `MapaTrayectoria.tsx` | — | ITJ `CadenaOperativaFiscalizacionIT`; E2E `flujo-municipal.test.mjs` (tabla, orden, hueco, «inferidos»); E2E `flujo-trayectoria.test.mjs` vía `TrayectoriaMunicipalNavegadorIT` (§16) | **PARTIAL**: A3 verificado técnicamente (§16); A4 sin acceso (D1 pendiente); el lienzo del mapa/teselas y los marcadores **no** se verifican |
 | 17 Continuidad/integridad GPS | RF-13 | A3 | `RevisionGpsController`, `RevisarEvidenciaGps` | `PaginaRevisionGps.tsx` | — | E2E `flujo-integridad-gps.test.mjs` vía `IntegridadGpsNavegadorIT` (§17) | **PARTIAL**: A3 verificado técnicamente con umbrales provisionales explícitos (§17); pendientes umbrales institucionales (PENDING-04) y validación con GPS físico |
@@ -407,6 +407,33 @@ Verificado (local): `VehiculosPersonalNavegadorIT` 1/1 (Chromium real + REST rea
 | Revocación | **Verificado** | `VEHICULOS_GESTIONAR` revocado: el mismo token pasa a 403 al escribir y conserva la consulta |
 | Flujo A4 existente | **Verificado** (sin ampliar permisos) | con concesión por periodo ve los vínculos creados por A1 como recursos elegibles y asigna |
 | D1 (A4 sobre sus vehículos/personas), catálogo real de tipos, criterio de conducción, cuenta obligatoria | **PENDING** | no se inventaron |
+
+## 25. F3 móvil — CU-13 ejecutar jornada y CU-14 incidencia en línea (A5)
+
+CI: `146ca8c` — Engineering foundation (run 44648958801) **PASS**: `flutter analyze`, `flutter test` (incluye las 7 pruebas nuevas del panel), backend unitario y `backend-integration`. `5b142b9` — Browser E2E (44648359013) **PASS**; Engineering foundation (44648359083) **FAIL solo en `flutter test`** porque el fixture nuevo dejaba pendiente el temporizador de `GestorSesion` (se corrigió en `146ca8c`; `backend-integration` del mismo run **PASS**). Local: integración `verify` 158/158 (27 clases), unitarias 99/99. Flutter no se ejecuta localmente (guardián del entorno); su evidencia es la de CI.
+
+**Defectos corregidos (CU-14):**
+1. El panel de incidencias se monta al seleccionar la asignación (antes del INICIO) y fijaba ahí la fecha sugerida del hecho; sin editarla, se declaraba esa hora: 409 si era anterior al INICIO, o una ocurrencia distinta del hecho (CA-14-02). Ahora una fecha sugerida y no editada se renueva al abrir el formulario; una fecha editada no se toca.
+2. Un fallo de almacenamiento llegaba a `/error` (cerrado por la seguridad) y el móvil mostraba «sin autorización». Ahora responde **503** («no hay confirmación; reintente la misma solicitud») y la escritura se revierte.
+
+| Criterio | Estado | Evidencia |
+|---|---|---|
+| CA-13-01…03 identidad, INICIO único, FIN no anterior | **Verificado (automatizado)** | `EjecucionAutenticadaIT`, `EventosEjecucionIT`, `pagina_operacion_test` |
+| CA-13-04/05 captura con precisión y offline | **Verificado con datos sintéticos** | `posiciones_gps_test`, `PosicionesGpsIT`, emulador; **GPS físico PENDING** |
+| CA-13-06/07 idempotencia, cuenta B | **Verificado (automatizado)** | `sesion_offline_test`, `posiciones_gps_test`, `PosicionesGpsIT` |
+| CA-13-08/09 FIN detiene captura, recuperación | **Verificado (automatizado)** | `pagina_operacion_test`, migraciones SQLite; **segundo plano/HyperOS PENDING** |
+| CA-13-10 sin cumplimiento automático | **Verificado** | `FlujoMunicipalNavegadorIT`: INICIO, GPS, incidencia y FIN no crean dictamen ni modifican evidencia |
+| CA-14-01 / 02 jornada válida, descripción y fecha declarada | **Verificado** | REST (registrante = principal, fecha declarada ≠ recepción); panel (UTC exacto, fecha sugerida al abrir) |
+| CA-14-03 sin acceso de otro actor | **Verificado** | otro conductor 403; A4 sin acceso al expediente (403); jornada inexistente 403 sin enumeración |
+| CA-14-04 datos mínimos | **Verificado** | REST 400 (descripción, fecha, asignación, campo de identidad, fecha futura); panel no envía |
+| CA-14-05 sin sanción ni dictamen | **Verificado** | sin acción correctiva, inspección ni fiscalización creadas |
+| CA-14-06 sin confirmación falsa | **Verificado** | REST 503 con reversión (inyección); panel: sin red/503 no confirma y reintenta la misma `solicitudId` |
+| CA-14-07 antecedente consultable | **Verificado** | consulta propia del conductor y expediente municipal (`CORRECTIVA_CONSULTAR`) |
+| Idempotencia / fuera de ejecución | **Verificado** | mismo contenido → misma incidencia y recepción; otro contenido 409; antes del INICIO o tras FIN 409 |
+| GPS físico, batería, segundo plano, HyperOS (CU-13) | **PENDING** | `QA_FISICA_REDMI_15C_CU13_CU14.md`; no se afirma desde pruebas sintéticas ni de widgets |
+| A4 en CU-14, incidencias offline/tardías, categorías | **PENDING** | D1, decisión institucional, PENDING-06 |
+
+Conteos sin cambio: CU-13 y CU-14 siguen **PARTIAL**.
 
 ## 9. Distinción final
 
