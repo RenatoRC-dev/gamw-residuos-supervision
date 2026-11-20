@@ -95,6 +95,7 @@ public class GestionarFiscalizacion {
         permisos.exigirRegistroInspeccion(a);
         if(e==null || e.solicitudId()==null || e.realizadaEn()==null) throw error(HttpStatus.BAD_REQUEST,"Solicitud y fecha de inspección requeridas.");
         if(!e.realizadaEn().equals(e.realizadaEn().truncatedTo(java.time.temporal.ChronoUnit.MICROS))) throw error(HttpStatus.BAD_REQUEST,"Fecha de inspección con precisión máxima de microsegundos.");
+        if(e.realizadaEn().isAfter(Instant.now())) throw error(HttpStatus.BAD_REQUEST,"La fecha de inspección declarada no puede ser futura.");
         texto(e.observaciones(),20000,true); texto(e.lugarDescripcion(),2000,false);
         if((e.latitud()==null)!=(e.longitud()==null) || (e.latitud()!=null && (!Double.isFinite(e.latitud()) || !Double.isFinite(e.longitud()) || Math.abs(e.latitud())>90 || Math.abs(e.longitud())>180)))
             throw error(HttpStatus.BAD_REQUEST,"Coordenadas opcionales válidas [longitud,latitud] requeridas en conjunto.");
@@ -104,6 +105,7 @@ public class GestionarFiscalizacion {
         for(int i=0;i<archivos.size();i++) {
             var m=metadatos.get(i); if(m==null) throw error(HttpStatus.BAD_REQUEST,"Metadatos requeridos.");
             if(m.capturadaEn()!=null && !m.capturadaEn().equals(m.capturadaEn().truncatedTo(java.time.temporal.ChronoUnit.MICROS))) throw error(HttpStatus.BAD_REQUEST,"Fecha de captura con precisión máxima de microsegundos.");
+            if(m.capturadaEn()!=null && m.capturadaEn().isAfter(Instant.now())) throw error(HttpStatus.BAD_REQUEST,"La fecha de captura declarada no puede ser futura.");
             texto(m.origen(),2000,true); texto(m.descripcion(),4000,true); validos.add(politica.validar(archivos.get(i)));
         }
         String huella=PoliticaEvidenciasCampo.huella(json.writeValueAsBytes(Map.of("jornada",jornada,"datos",e,"archivos",validos.stream().map(v->List.of(v.nombre(),v.mime(),v.sha256())).toList())));

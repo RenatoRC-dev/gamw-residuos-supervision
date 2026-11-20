@@ -1,13 +1,19 @@
 package bo.gob.warnes.gamw.residuos.modules.fiscalizacion.api;
 
+import bo.gob.warnes.gamw.residuos.modules.fiscalizacion.dominio.RepositorioFiscalizacion;
 import bo.gob.warnes.gamw.residuos.shared.config.IntegracionPostgresV8;
 import bo.gob.warnes.gamw.residuos.shared.security.EmisorTokensJwt;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -36,6 +42,8 @@ class InspeccionCampoIT extends IntegracionPostgresV8 {
     @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder codificador;
     @Autowired EmisorTokensJwt emisor;
+    @MockitoSpyBean RepositorioFiscalizacion repositorio;
+    @AfterEach void restaurar() { reset(repositorio); }
     private final UUID empresa=UUID.randomUUID(),periodo=UUID.randomUUID(),ruta=UUID.randomUUID(),version=UUID.randomUUID(),jornada=UUID.randomUUID();
     private UUID inspector,otroInspector,soloConsulta,conductor;
 
@@ -165,6 +173,72 @@ class InspeccionCampoIT extends IntegracionPostgresV8 {
         assertThat(inspecciones()).isZero();
         var expediente=json.readTree(mvc.perform(get("/api/fiscalizacion/jornadas/"+jornada).header("Authorization",bearer(soloConsulta))).andReturn().getResponse().getContentAsString());
         assertThat(expediente.get("puedeRegistrarInspeccion").asBoolean()).isFalse();
+    }
+
+    @Test void fechaDeclaradaFuturaSeRechazaSinRegistro() throws Exception {
+        // La fecha de realización es un hecho ya ocurrido: no puede ser posterior a su propio registro.
+        var futura=inspeccion(UUID.randomUUID(),Instant.now().plus(2,ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS));
+        registrar(inspector,futura,400);
+        assertThat(inspecciones()).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM inspeccion WHERE jornada_id=? AND realizada_en>registrada_en",Integer.class,jornada)).isZero();
+    }
+
+    @Test void revocacionInmediataSobreElMismoToken() throws Exception {
+        Instant fecha=Instant.now().minus(1,ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        String t=bearer(inspector);
+        var b=post("/api/fiscalizacion/jornadas/"+jornada+"/inspecciones").contentType("application/json").header("Authorization",t);
+        assertThat(mvc.perform(b.content(json.writeValueAsString(inspeccion(UUID.randomUUID(),fecha)))).andReturn().getResponse().getStatus()).isEqualTo(200);
+        jdbc.update("UPDATE concesion_permiso SET revocado_en=clock_timestamp(),revocado_por_local='prueba-sintetica',motivo_revocacion='revocación sintética' WHERE usuario_id=? AND permiso='INSPECCION_REGISTRAR' AND revocado_en IS NULL",inspector);
+        var c=post("/api/fiscalizacion/jornadas/"+jornada+"/inspecciones").contentType("application/json").header("Authorization",t);
+        assertThat(mvc.perform(c.content(json.writeValueAsString(inspeccion(UUID.randomUUID(),fecha)))).andReturn().getResponse().getStatus()).isEqualTo(403);
+        var expediente=json.readTree(mvc.perform(get("/api/fiscalizacion/jornadas/"+jornada).header("Authorization",t)).andReturn().getResponse().getContentAsString());
+        assertThat(expediente.get("puedeRegistrarInspeccion").asBoolean()).isFalse();
+        assertThat(expediente.get("inspecciones").size()).as("la consulta no revocada conserva la historia").isEqualTo(1);
+        assertThat(inspecciones()).isEqualTo(1);
+    }
+
+    @Test void reintentosConcurrentesNoDuplicanYLasDeOtroActorOContenidoSeRechazan() throws Exception {
+        Instant fecha=Instant.now().minus(1,ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        // La inserción se retiene dentro de la transacción para superponer las réplicas de forma determinista.
+        doAnswer(i -> { i.callRealMethod(); Thread.sleep(400); return null; }).when(repositorio).insertarInspeccion(any(),any(),any(),any(),any(),any(),any(),any(),any(),any());
+        UUID solicitud=UUID.randomUUID(); String cuerpo=json.writeValueAsString(inspeccion(solicitud,fecha)),t=bearer(inspector);
+        var replicas=simultaneas(List.of(t,t,t,t),List.of(cuerpo,cuerpo,cuerpo,cuerpo));
+        assertThat(replicas).allSatisfy(r -> assertThat(r.getKey()).as("réplica concurrente: %s",r.getValue()).isEqualTo(200));
+        assertThat(replicas.stream().map(r -> json.readTree(r.getValue()).get("id").asText()).distinct()).hasSize(1);
+        assertThat(inspecciones()).isEqualTo(1);
+        UUID otra=UUID.randomUUID(); var distinta=inspeccion(otra,fecha); distinta.put("observaciones","Contenido distinto");
+        String a=json.writeValueAsString(inspeccion(otra,fecha)),b=json.writeValueAsString(distinta);
+        var mixtas=simultaneas(List.of(bearer(inspector),bearer(otroInspector),bearer(inspector)),List.of(a,a,b));
+        assertThat(mixtas.stream().filter(r -> r.getKey()==200)).as("una sola gana: %s",mixtas).hasSize(1);
+        assertThat(mixtas.stream().filter(r -> r.getKey()==409)).as("las demás se rechazan: %s",mixtas).hasSize(2);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM inspeccion WHERE solicitud_id=?",Integer.class,otra)).isEqualTo(1);
+        assertThat(inspecciones()).isEqualTo(2);
+    }
+    private List<Map.Entry<Integer,String>> simultaneas(List<String> tokens,List<String> cuerpos) throws Exception {
+        var iniciar=new java.util.concurrent.CountDownLatch(1); var resultado=new ArrayList<Map.Entry<Integer,String>>();
+        try(var pool=java.util.concurrent.Executors.newFixedThreadPool(tokens.size())) {
+            List<java.util.concurrent.Future<Map.Entry<Integer,String>>> f=new ArrayList<>();
+            for(int i=0;i<tokens.size();i++) { String t=tokens.get(i),c=cuerpos.get(i);
+                f.add(pool.submit(() -> { iniciar.await();
+                    var r=mvc.perform(post("/api/fiscalizacion/jornadas/"+jornada+"/inspecciones").header("Authorization",t).contentType("application/json").content(c)).andReturn().getResponse();
+                    return Map.entry(r.getStatus(),r.getContentAsString()); })); }
+            iniciar.countDown();
+            for(var x:f) resultado.add(x.get(20,java.util.concurrent.TimeUnit.SECONDS));
+        }
+        return resultado;
+    }
+
+    @Test void unFalloDePersistenciaResponde503SinRegistroYElReintentoConfirma() throws Exception {
+        Instant fecha=Instant.now().minus(1,ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS); UUID solicitud=UUID.randomUUID();
+        doAnswer(i -> { i.callRealMethod(); throw new DataAccessResourceFailureException("Fallo inyectado (prueba)."); })
+            .when(repositorio).insertarInspeccion(any(),any(),any(),any(),any(),any(),any(),any(),any(),any());
+        registrar(inspector,inspeccion(solicitud,fecha),503);
+        assertThat(inspecciones()).as("la inserción se revirtió: sin falso éxito").isZero();
+        reset(repositorio);
+        var r=registrar(inspector,inspeccion(solicitud,fecha),200);
+        assertThat(r.get("inspectorUsuarioId").asText()).isEqualTo(inspector.toString());
+        assertThat(inspecciones()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM fiscalizacion WHERE jornada_id=?",Integer.class,jornada)).isZero();
     }
 
     @Test void fotografiasPermanecenDeshabilitadasSinPoliticaAprobada() throws Exception {

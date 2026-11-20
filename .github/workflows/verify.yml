@@ -72,7 +72,7 @@ jobs:
           descarga='could not be resolved|Could not (resolve|transfer|find artifact)|status code: (4(03|29)|5[0-9][0-9])|Connection (reset|refused|timed out)'
           for intento in 1 2 3; do
             sh ./mvnw --batch-mode --no-transfer-progress -U -Ppostgres-integration verify \
-              -Dit.test=FlywayBaselineIT,IntegridadHistoricaIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT,MinimoPrivilegioEjecucionIT,ConcurrenciaPeriodoJornadaIT,FalloPersistenciaRegistroOperativoIT,IncidenciasOperativasIT,ReportesServicioIT,ReferenciasEspacialesIT,ReclamoInstitucionalIT,RevisionReclamosIT,PuntosCriticosIT,FiscalizacionMunicipalIT,*EjecucionNoPropietariaIT \
+              -Dit.test=FlywayBaselineIT,IntegridadHistoricaIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT,MinimoPrivilegioEjecucionIT,ConcurrenciaPeriodoJornadaIT,FalloPersistenciaRegistroOperativoIT,IncidenciasOperativasIT,ReportesServicioIT,ReferenciasEspacialesIT,ReclamoInstitucionalIT,RevisionReclamosIT,PuntosCriticosIT,FiscalizacionMunicipalIT,InspeccionCampoIT,InspeccionEvidenciasSinteticasIT,*EjecucionNoPropietariaIT \
               > "$RUNNER_TEMP/mvn-it.log" 2>&1
             codigo=$?
             if [ "$codigo" -ne 0 ] && [ "$intento" -lt 3 ] && grep -qE "$descarga" "$RUNNER_TEMP/mvn-it.log" \
