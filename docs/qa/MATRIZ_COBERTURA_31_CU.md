@@ -484,6 +484,8 @@ CI `aaa9706`: Browser E2E (run 44667135176) **PASS**, incluye la verificación d
 
 Verificado (local, 2026-11-20): `RevisionReclamosIT` 6/6 y variante con rol no propietario 6/6 (JWT, PostgreSQL/PostGIS aislado); `RevisionReclamosNavegadorIT` 1/1 (Chromium real, REST real, JWT). Regresión local: `verify -Ppostgres-integration` completo, integración 260/260 en 57 clases (2 omitidas: pruebas de dispositivo físico, activadas solo a petición), unitarias 99/99, `FlujoMunicipalNavegadorIT` 1/1 (CU-26 comparte el formulario). Web `tsc`, vitest 75/75 y build. Datos sintéticos; no se creó ninguna categoría de valoración vigente: solo se insertó en la prueba una categoría ya retirada, para verificar que se rechaza.
 
+CI `f201089`: Engineering foundation (run 44684130570) **PASS** (`RevisionReclamosIT` en `-Dit.test`, la variante no propietaria por `*EjecucionNoPropietariaIT`); Browser E2E (44684130677) **PASS** (`RevisionReclamosNavegadorIT` en `-Dtest`).
+
 **Defectos corregidos (probados):**
 1. Fallo de persistencia al revisar o vincular: la `DataAccessException` no tenía manejador y llegaba a `/error`, cerrado por la seguridad, lo que daba un 403 engañoso. Ahora responde **503**, la transacción se revierte y no queda revisión ni vínculo (`ManejadorErroresReclamos`). Se reprodujo antes de corregir.
 2. Interfaz: tras un rechazo definitivo (409, p. ej. un vínculo con otra jornada), el formulario quedaba bloqueado (`fieldset` deshabilitado) y solo ofrecía «Reintentar misma solicitud», que repetía la petición rechazada. Ahora un 400 o 409 libera los datos para corregirlos y explica el conflicto. Solo un resultado incierto (red o 5xx) conserva la solicitud para reintentarla. Se reprodujo en la E2E antes de corregir.
