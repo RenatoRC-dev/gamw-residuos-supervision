@@ -96,7 +96,10 @@ public class GestionarReclamos {
         if(e.jornadaId()!=null && origen.isBlank()) throw error(HttpStatus.BAD_REQUEST,"Fundamente la relación con jornada en las referencias de origen.");
         if(e.jornadaId()!=null && !repo.existe(Tipo.JORNADA,e.jornadaId())) throw error(HttpStatus.BAD_REQUEST,"Jornada inexistente; no se inventa relación.");
         String h=huella(null,e);var previa=anterior(Registro.RECLAMO,e.solicitudId(),a,h);if(previa.isPresent()) return reclamo(a,previa.get());
-        UUID id=UUID.randomUUID();repo.registrar(id,e.solicitudId(),h,e.canalDeclarado(),e.recibidoEn(),e.descripcion(),lugar,origen,e.longitud(),e.latitud(),e.jornadaId(),a.usuarioId());return reclamo(a,id);
+        UUID id=UUID.randomUUID();
+        if(!repo.registrar(id,e.solicitudId(),h,e.canalDeclarado(),e.recibidoEn(),e.descripcion(),lugar,origen,e.longitud(),e.latitud(),e.jornadaId(),a.usuarioId()))
+            return reclamo(a,anterior(Registro.RECLAMO,e.solicitudId(),a,h).orElseThrow(()->error(HttpStatus.CONFLICT,"Solicitud concurrente no confirmada; consulte antes de reintentar.")));
+        return reclamo(a,id);
     }
     @Transactional public DetalleReclamo revisar(UsuarioAutenticado a,UUID id,NuevaRevision e) {
         permisos.exigirConsultaReclamo(a);permisos.exigirRevisionReclamo(a);requerido(e);requerido(e.solicitudId());texto(e.observaciones(),20000,true);bloquearReclamo(id);

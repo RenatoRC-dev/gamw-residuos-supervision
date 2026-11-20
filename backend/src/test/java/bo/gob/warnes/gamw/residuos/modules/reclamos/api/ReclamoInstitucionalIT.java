@@ -1,12 +1,19 @@
 package bo.gob.warnes.gamw.residuos.modules.reclamos.api;
 
+import bo.gob.warnes.gamw.residuos.modules.reclamos.dominio.RepositorioReclamos;
 import bo.gob.warnes.gamw.residuos.shared.config.IntegracionPostgresV8;
 import bo.gob.warnes.gamw.residuos.shared.security.EmisorTokensJwt;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,6 +41,8 @@ class ReclamoInstitucionalIT extends IntegracionPostgresV8 {
     @Autowired JdbcTemplate jdbc;
     @Autowired PasswordEncoder codificador;
     @Autowired EmisorTokensJwt emisor;
+    @MockitoSpyBean RepositorioReclamos repositorio;
+    @AfterEach void restaurar() { reset(repositorio); }
     private static final String R="/api/reclamos-institucionales";
     private final UUID empresa=UUID.randomUUID(),periodo=UUID.randomUUID(),ruta=UUID.randomUUID(),version=UUID.randomUUID(),jornada=UUID.randomUUID();
     private UUID registrador,otroRegistrador,soloConsulta,sinPermisos;
@@ -170,6 +179,57 @@ class ReclamoInstitucionalIT extends IntegracionPostgresV8 {
         var reg=json.readTree(mvc.perform(get(R+"/opciones").header("Authorization",bearer(registrador))).andReturn().getResponse().getContentAsString());
         assertThat(reg.get("puedeRegistrarReclamos").asBoolean()).isTrue();
         assertThat(reg.get("anexosHabilitados").asBoolean()).as("anexos deshabilitados sin política").isFalse();
+    }
+
+    @Test void replicasConcurrentesDevuelvenElOriginalYLasDeOtroActorOContenidoSeRechazan() throws Exception {
+        Instant recibido=Instant.now().minus(1,ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        // La inserción se retiene dentro de la transacción para que las réplicas se superpongan de forma determinista.
+        doAnswer(i -> { Object r=i.callRealMethod(); Thread.sleep(400); return r; }).when(repositorio).registrar(any(),any(),any(),any(),any(),any(),any(),any(),any(),any(),any(),any());
+        UUID solicitud=UUID.randomUUID(); String cuerpo=json.writeValueAsString(reclamo(solicitud,recibido)),t=bearer(registrador);
+        var respuestas=simultaneas(List.of(t,t,t,t),List.of(cuerpo,cuerpo,cuerpo,cuerpo));
+        assertThat(respuestas).allSatisfy(r -> assertThat(r.getKey()).as("réplica concurrente: %s",r.getValue()).isEqualTo(200));
+        assertThat(respuestas.stream().map(r -> json.readTree(r.getValue()).get("reclamo").get("id").asText()).distinct()).hasSize(1);
+        assertThat(cantidad()).isEqualTo(1);
+        var original=jdbc.queryForMap("SELECT usuario_id,recibido_en,canal_declarado,huella_solicitud FROM reclamo_institucional WHERE solicitud_id=?",solicitud);
+        assertThat(original).containsEntry("usuario_id",registrador);
+        assertThat(((java.sql.Timestamp)original.get("recibido_en")).toInstant()).isEqualTo(recibido);
+        // Misma solicitud, simultánea, desde otro actor y con otro contenido: una sola gana; las demás 409; el original no cambia.
+        UUID otra=UUID.randomUUID(); var distinto=reclamo(otra,recibido); distinto.put("descripcion","Otro contenido "+marca);
+        String a=json.writeValueAsString(reclamo(otra,recibido)),b=json.writeValueAsString(distinto);
+        var mixtas=simultaneas(List.of(bearer(registrador),bearer(otroRegistrador),bearer(registrador)),List.of(a,a,b));
+        assertThat(mixtas.stream().filter(r -> r.getKey()==200)).as("una sola gana: %s",mixtas).hasSize(1);
+        assertThat(mixtas.stream().filter(r -> r.getKey()==409)).as("las demás se rechazan: %s",mixtas).hasSize(2);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM reclamo_institucional WHERE solicitud_id=?",Integer.class,otra)).isEqualTo(1);
+        JsonNode ganador=json.readTree(mixtas.stream().filter(r -> r.getKey()==200).findFirst().orElseThrow().getValue()).get("reclamo");
+        var guardado=jdbc.queryForMap("SELECT usuario_id,descripcion FROM reclamo_institucional WHERE solicitud_id=?",otra);
+        assertThat(guardado.get("usuario_id")).as("autor del ganador, no reemplazado").isEqualTo(UUID.fromString(ganador.get("usuarioId").asText()));
+        assertThat(guardado.get("descripcion")).isEqualTo(ganador.get("descripcion").asText());
+        assertThat(jdbc.queryForMap("SELECT usuario_id,recibido_en,canal_declarado,huella_solicitud FROM reclamo_institucional WHERE solicitud_id=?",solicitud)).isEqualTo(original);
+    }
+    private List<Map.Entry<Integer,String>> simultaneas(List<String> tokens,List<String> cuerpos) throws Exception {
+        var iniciar=new CountDownLatch(1); var resultado=new ArrayList<Map.Entry<Integer,String>>();
+        try(var pool=Executors.newFixedThreadPool(tokens.size())) {
+            List<Future<Map.Entry<Integer,String>>> f=new ArrayList<>();
+            for(int i=0;i<tokens.size();i++) { String t=tokens.get(i),c=cuerpos.get(i);
+                f.add(pool.submit(() -> { iniciar.await();
+                    var r=mvc.perform(post(R).header("Authorization",t).contentType("application/json").content(c)).andReturn().getResponse();
+                    return Map.entry(r.getStatus(),r.getContentAsString()); })); }
+            iniciar.countDown();
+            for(var x:f) resultado.add(x.get(20,TimeUnit.SECONDS));
+        }
+        return resultado;
+    }
+
+    @Test void unFalloDePersistenciaResponde503YLaMismaSolicitudSeConfirmaDespues() throws Exception {
+        Instant recibido=Instant.now().minus(1,ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS); UUID solicitud=UUID.randomUUID();
+        doAnswer(i -> { i.callRealMethod(); throw new DataAccessResourceFailureException("Fallo inyectado (prueba)."); })
+            .when(repositorio).registrar(any(),any(),any(),any(),any(),any(),any(),any(),any(),any(),any(),any());
+        enviar(registrador,reclamo(solicitud,recibido),503);
+        assertThat(cantidad()).as("la inserción se revirtió").isZero();
+        reset(repositorio);
+        var r=enviar(registrador,reclamo(solicitud,recibido),200).get("reclamo");
+        assertThat(r.get("usuarioId").asText()).isEqualTo(registrador.toString());
+        assertThat(cantidad()).isEqualTo(1);
     }
 
     /** Cantidad de reclamos que el historial CU-29 atribuye a la jornada (visible solo con RECLAMO_CONSULTAR). */

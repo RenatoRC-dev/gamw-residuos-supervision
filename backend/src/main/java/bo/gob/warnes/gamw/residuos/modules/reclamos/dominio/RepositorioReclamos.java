@@ -32,7 +32,8 @@ public interface RepositorioReclamos {
     boolean tieneDecision(UUID id);
     List<Anexo> anexos(UUID id);
     Optional<Archivo> archivo(UUID reclamo,UUID anexo);
-    void registrar(UUID id,UUID solicitud,String huella,String canal,Instant recibido,String descripcion,String lugar,String origen,Double lon,Double lat,UUID jornada,UUID actor);
+    /** @return false si otra transacción ya confirmó la misma solicitud (no se inserta nada). */
+    boolean registrar(UUID id,UUID solicitud,String huella,String canal,Instant recibido,String descripcion,String lugar,String origen,Double lon,Double lat,UUID jornada,UUID actor);
     void revisar(UUID id,UUID solicitud,String huella,UUID reclamo,UUID actor,UUID resultado,String observaciones);
     void relacionar(UUID id,UUID reclamo,Tipo tipo,UUID referencia,String fundamento,UUID actor);
     void anexar(UUID id,UUID reclamo,UUID actor,String origen,String descripcion,Instant captura,String politica,String nombre,String mime,String sha,byte[] contenido);

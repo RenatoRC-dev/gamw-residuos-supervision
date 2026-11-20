@@ -53,11 +53,13 @@ public class RepositorioReclamosPostgres implements RepositorioReclamos {
     public List<Anexo> anexos(UUID id) { return jdbc.query("SELECT id,usuario_id,origen,descripcion,capturado_en,registrado_en,nombre_original,tipo_mime,sha256,referencia_politica,octet_length(contenido) AS tamano FROM anexo_reclamo WHERE reclamo_id=? ORDER BY registrado_en,id",
         (r,n)->new Anexo(id(r,"id"),id(r,"usuario_id"),r.getString("origen"),r.getString("descripcion"),fecha(r,"capturado_en"),fecha(r,"registrado_en"),r.getString("nombre_original"),r.getString("tipo_mime"),r.getString("sha256"),r.getInt("tamano"),r.getString("referencia_politica")),id); }
     public Optional<Archivo> archivo(UUID reclamo,UUID anexo) { return jdbc.query("SELECT nombre_original,tipo_mime,contenido FROM anexo_reclamo WHERE reclamo_id=? AND id=?",(r,n)->new Archivo(r.getString(1),r.getString(2),r.getBytes(3)),reclamo,anexo).stream().findFirst(); }
-    public void registrar(UUID id,UUID solicitud,String huella,String canal,Instant recibido,String descripcion,String lugar,String origen,Double lon,Double lat,UUID jornada,UUID actor) {
-        jdbc.update("""
+    public boolean registrar(UUID id,UUID solicitud,String huella,String canal,Instant recibido,String descripcion,String lugar,String origen,Double lon,Double lat,UUID jornada,UUID actor) {
+        // Una réplica concurrente de la misma solicitud espera la confirmación de la primera y no inserta; el servicio resuelve la idempotencia.
+        return jdbc.update("""
             INSERT INTO reclamo_institucional(id,solicitud_id,huella_solicitud,canal_declarado,recibido_en,descripcion,lugar_descripcion,referencias_origen,geometria,jornada_id,usuario_id)
             VALUES (?,?,?,?,?,?,?,?,CASE WHEN ?::double precision IS NULL THEN NULL ELSE ST_SetSRID(ST_MakePoint(?,?),4326) END,?,?)
-            """,id,solicitud,huella,canal,tiempo(recibido),descripcion,lugar,origen,lon,lon,lat,jornada,actor);
+            ON CONFLICT (solicitud_id) DO NOTHING
+            """,id,solicitud,huella,canal,tiempo(recibido),descripcion,lugar,origen,lon,lon,lat,jornada,actor)==1;
     }
     public void revisar(UUID id,UUID solicitud,String huella,UUID reclamo,UUID actor,UUID resultado,String observaciones) { jdbc.update("INSERT INTO revision_reclamo(id,solicitud_id,huella_solicitud,reclamo_id,usuario_id,resultado_id,observaciones) VALUES (?,?,?,?,?,?,?)",id,solicitud,huella,reclamo,actor,resultado,observaciones); }
     public void relacionar(UUID id,UUID reclamo,Tipo tipo,UUID referencia,String fundamento,UUID actor) {
