@@ -52,21 +52,32 @@ jobs:
           exit 1
       - name: Integración esencial (Flyway V1–V21, seguridad, cadena operativa, historial, bitácora)
         working-directory: backend
-        # El resultado no se altera: falla si falla Maven; no se reintenta (una aserción funcional fallida nunca se repite).
-        # Run 44583215350: la pre-resolución con dependency:resolve-plugins descargaba plugins que este ciclo no usa (p. ej.
-        # maven-site-plugin) y fallaba antes de las pruebas. Se elimina: el ciclo verify resuelve solo lo que ejecuta; -U reconsulta
-        # resoluciones remotas fallidas en caché. La anotación distingue fallo de descarga remota de fallo de la aplicación.
+        # Una aserción funcional fallida nunca se repite. Run 44583215350: se eliminó la pre-resolución con dependency:resolve-plugins
+        # (descargaba plugins que este ciclo no usa); -U reconsulta resoluciones remotas fallidas en caché.
+        # Runs 44631388307 y 44641349045: maven-failsafe-plugin no se resolvió desde Maven Central ANTES de ejecutar pruebas (la misma
+        # versión se resolvió en las ejecuciones previas y posteriores). Reintento acotado (PO): SOLO si el log no contiene ninguna
+        # línea «Tests run:» y sí un fallo de descarga remota; cualquier otro fallo termina en el primer intento.
         run: |
           set +e
-          sh ./mvnw --batch-mode --no-transfer-progress -U -Ppostgres-integration verify \
-            -Dit.test=FlywayBaselineIT,IntegridadHistoricaIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT,MinimoPrivilegioEjecucionIT,ConcurrenciaPeriodoJornadaIT,FalloPersistenciaRegistroOperativoIT,*EjecucionNoPropietariaIT \
-            > "$RUNNER_TEMP/mvn-it.log" 2>&1
-          codigo=$?
+          descarga='could not be resolved|Could not (resolve|transfer|find artifact)|status code: (4(03|29)|5[0-9][0-9])|Connection (reset|refused|timed out)'
+          for intento in 1 2 3; do
+            sh ./mvnw --batch-mode --no-transfer-progress -U -Ppostgres-integration verify \
+              -Dit.test=FlywayBaselineIT,IntegridadHistoricaIT,AutorizacionOperativaV19IT,CadenaOperativaFiscalizacionIT,PosicionesGpsIT,EventosEjecucionIT,EjecucionAutenticadaIT,ConsultaSeguimientoGpsIT,JornadasIT,HistorialServicioIT,BitacoraEventosIT,BitacoraAutorizacionIT,MinimoPrivilegioEjecucionIT,ConcurrenciaPeriodoJornadaIT,FalloPersistenciaRegistroOperativoIT,*EjecucionNoPropietariaIT \
+              > "$RUNNER_TEMP/mvn-it.log" 2>&1
+            codigo=$?
+            if [ "$codigo" -ne 0 ] && [ "$intento" -lt 3 ] && grep -qE "$descarga" "$RUNNER_TEMP/mvn-it.log" \
+               && ! grep -qE 'Tests run: [0-9]+' "$RUNNER_TEMP/mvn-it.log"; then
+              echo "::warning title=Descarga Maven remota (intento $intento)::Fallo de descarga antes de ejecutar pruebas; se reintenta."
+              grep -m 4 -E "$descarga" "$RUNNER_TEMP/mvn-it.log" | cut -c1-400
+              sleep $((intento * 30)); continue
+            fi
+            break
+          done
           tail -n 400 "$RUNNER_TEMP/mvn-it.log"
-          if [ "$codigo" -ne 0 ] && grep -qE 'could not be resolved|Could not (resolve|transfer)|status code: 5[0-9][0-9]|Connection (reset|refused|timed out)' "$RUNNER_TEMP/mvn-it.log" \
+          if [ "$codigo" -ne 0 ] && grep -qE "$descarga" "$RUNNER_TEMP/mvn-it.log" \
              && ! grep -qE 'Tests run: [0-9]+' "$RUNNER_TEMP/mvn-it.log"; then
-            remoto=$(grep -m 4 -E 'could not be resolved|Could not (resolve|transfer)|status code' "$RUNNER_TEMP/mvn-it.log" | cut -c1-240 | sed ':a;N;$!ba;s/\n/%0A/g')
-            echo "::error title=Repositorio Maven remoto (infraestructura, no la aplicación)::Fallo de descarga antes de ejecutar pruebas.%0A${remoto}"
+            remoto=$(grep -m 4 -E "$descarga" "$RUNNER_TEMP/mvn-it.log" | cut -c1-500 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Repositorio Maven remoto (infraestructura, no la aplicación)::Fallo de descarga antes de ejecutar pruebas, tras 3 intentos.%0A${remoto}"
           elif [ "$codigo" -ne 0 ]; then
             # Primera causa raíz: excepciones del arnés y registros de initdb/pg_ctl/postgres del clúster efímero (si se conservaron).
             resumen=$( { grep -nE 'Falló el aprovisionamiento|Se requiere PostgreSQL|Caused by|FATAL|could not|Could not (transfer|resolve)|status code|Permission denied|Tests run:.*FAIL' "$RUNNER_TEMP/mvn-it.log" | head -16
